@@ -1,6 +1,11 @@
 Revision history for Perl extension XML::Smart.
 
 
+1.6.6 2004-7-8
+    - Fixed minor bug on content order for multiple contents and null contents chunks.
+    - Fixed wrong creation of key in the tree when using is_node() for null pointers.
+
+
 1.6.5 2004-5-29
     - Fixed some minor bug for the bugged Perl 5.8.0.
 

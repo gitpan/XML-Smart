@@ -268,9 +268,12 @@ sub _Init {
 ##########
 
 sub _Start {
-  my $this = shift ; ##print "START>> @_\n" ;
+  my $this = shift ;
   
   if ( $this->{LAST_CALL} eq 'char' ) { _Char_process( $this , delete $this->{CONTENT_BUFFER} ) ;}
+  
+  ##print "START>> @_\n" ;
+  
   $this->{LAST_CALL} = 'start' ;
   
   my ($tag , %args) = @_ ;
@@ -367,7 +370,7 @@ sub _Start {
 # have other nodes inside.
 #
 
-sub _Char {
+sub _Char { ##print "CHAR>>\n" ;
   my $this = shift ;
   $this->{CONTENT_BUFFER} .= $_[0] ;
   $this->{LAST_CALL} = 'char' ;
@@ -376,7 +379,7 @@ sub _Char {
 
 sub _Char_process {
   my $this = shift ;
-  #print "CONT>> ##@_##\n" ;
+  ##print "CONT>> ##@_##\n" ;
 
   my $content = $_[0] ;
   
@@ -425,7 +428,13 @@ sub _Char_process {
       $this->{PARSING}{p}{'/.CONTENT/x'} = 0 ;
       $this->{PARSING}{p}{"/.CONTENT/0"} = $cont ;
       
-      splice( @{$this->{PARSING}{p}{'/order'}} , -1,0, "/.CONTENT/0") if !$this->{SMART}{no_order} ;
+      my $cont_pos = 0 ;
+      for my $key ( @{$this->{PARSING}{p}{'/order'}} ) {
+        last if ($key eq 'CONTENT') ;
+        ++$cont_pos ;
+      }
+      
+      splice( @{$this->{PARSING}{p}{'/order'}} , $cont_pos,0, "/.CONTENT/0") if !$this->{SMART}{no_order} ;
     }
 
     my $x = ++$this->{PARSING}{p}{'/.CONTENT/x'} ;

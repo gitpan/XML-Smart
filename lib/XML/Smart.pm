@@ -23,7 +23,7 @@ use XML::Smart::Tie ;
 use XML::Smart::Tree ;
 
 our ($VERSION) ;
-$VERSION = '1.6.5' ;
+$VERSION = '1.6.6' ;
 
 ###############
 # AUTOLOADERS #
@@ -524,6 +524,8 @@ sub cut_root {
 
 sub is_node {
   my $this = shift ;
+  return if $this->null ;
+  
   my $key = $this->key ;
   
   my $back = $this->back ;
@@ -538,6 +540,8 @@ sub is_node {
 
 sub args {
   my $this = shift ;
+  return () if $this->null ;
+  
   my @args ;
 
   my $nodes = $this->back->{'/nodes'} ;
@@ -560,6 +564,9 @@ sub args {
 
 sub args_values {
   my $this = shift ;
+  
+  return () if $this->null ;
+  
   my @args = $this->args ;
 
   my @values ;
@@ -578,6 +585,8 @@ sub args_values {
 sub nodes {
   my $this = shift ;
 
+  return () if $this->null ;
+    
   my $nodes = $this->{'/nodes'}->pointer ;
   my $pointer = $$this->{point} ;
   
@@ -606,6 +615,8 @@ sub nodes {
 
 sub nodes_keys {
   my $this = shift ;
+  
+  return () if $this->null ;
 
   my $nodes = $this->{'/nodes'}->pointer ;
   my $pointer = $$this->{point} ;
@@ -1798,7 +1809,7 @@ not directly to the HASH tree inside the object, (This will fix wrong accesses):
   my $server = $XML->{server}[0] ; ## return $XML->{server}[0]
   my $server = $XML->{server}[1] ; ## return $XML->{server}[1]
 
-To get all the values of a multiple attribute/key:
+To get all the values of multiple elements/keys:
 
   ## This work having only a string inside {address}, or with an ARRAY ref:
   my @addrsses = @{$XML->{server}{address}} ;
@@ -1907,7 +1918,7 @@ Where TYPE can be:
 
 Example:
 
-  ## All the servers
+  ## A servers content
   my $name = $XML->{server}{name}('$') ;
   ## ... or:
   my $name = $XML->{server}{name}->content ;
@@ -1926,7 +1937,7 @@ Example:
   ## Without the reference:
   my @servers = $XML->{server}('$@') ;
   
-  ## Without the reference:
+  ## A XML data, same as data_pointer():
   my $xml_data = $XML->{server}('<xml>') ;
 
 

@@ -4,8 +4,10 @@
 
 use ExtUtils::MakeMaker qw(prompt) ;
 
+use strict qw(vars) ;
+
 use Test;
-BEGIN { plan tests => 156 } ;
+BEGIN { plan tests => 158 } ;
 use XML::Smart ;
 
 no warnings ;
@@ -25,7 +27,7 @@ my $DATA = q`<?xml version="1.0" encoding="iso-8859-1"?>
 </hosts>
 `;
 
-#if (0) {
+##if (0) {
 #########################
 {
 
@@ -177,6 +179,17 @@ TEXT1 &amp; more
 
 `) ;
 
+}
+#########################
+{
+
+  my $XML = XML::Smart->new('<a>text1<b>foo</b><c>bar</c>text2</a>' , 'XML::Smart::Parser') ;
+
+  my $data = $XML->data(noheader => 1) ;
+  $data =~ s/\s//g ;
+
+  ok($data,'<a>text1<b>foo</b><c>bar</c>text2</a>') ;
+  
 }
 #########################
 {
@@ -474,7 +487,7 @@ TEXT1 &amp; more
   my $data = $XML->data(noheader => 1) ;
   $data =~ s/\s//gs ;
   
-  $dataok = q`<hosts><serveros="lx"type="red"ver="123"/></hosts>`;
+  my $dataok = q`<hosts><serveros="lx"type="red"ver="123"/></hosts>`;
   
   ok($data,$dataok) ;
                        
@@ -506,7 +519,7 @@ TEXT1 &amp; more
   my $data = $XML->data(noheader => 1) ;
   $data =~ s/\s//gs ;
   
-  $dataok = q`<hosts><serveros="LX"type="red"ver="123"/></hosts>`;
+  my $dataok = q`<hosts><serveros="LX"type="red"ver="123"/></hosts>`;
   
   ok($data,$dataok) ;
 
@@ -531,7 +544,7 @@ TEXT1 &amp; more
   my $data = $XML->data(noheader => 1) ;
   $data =~ s/\s//gs ;
   
-  $dataok = q`<root><hostsos="lx"type="red"ver="123"><moreYYYY="1"/></hosts><hostsXXXXXX="1"/></root>` ;
+  my $dataok = q`<root><hostsos="lx"type="red"ver="123"><moreYYYY="1"/></hosts><hostsXXXXXX="1"/></root>` ;
   
   ok($data,$dataok) ;
 
@@ -597,7 +610,7 @@ TEXT1 &amp; more
 
   my $wild = pack("C", 127 ) ;
 
-  $data = qq`<?xml version="1.0" encoding="iso-8859-1"?><code>$wild</code>`;
+  my $data = qq`<?xml version="1.0" encoding="iso-8859-1"?><code>$wild</code>`;
 
   my $XML = XML::Smart->new($data , 'XML::Smart::Parser') ;
 
@@ -829,7 +842,7 @@ TEXT1 &amp; more
 #########################
 {
 
-  my $XML = new XML::Smart $data1;
+  my $XML = new XML::Smart ;
   $XML->{root}{foo} = "bla bla bla <tag> bla bla";
 
   my $data = $XML->data(nospace => 1 , noheader => 1 ) ;
@@ -849,7 +862,7 @@ TEXT1 &amp; more
 #########################
 {
 
-  my $XML = new XML::Smart $data1;
+  my $XML = new XML::Smart ;
   $XML->{root}{foo} = "<h1>test \x03</h1>";
 
   my $data = $XML->data(nospace => 1 , noheader => 1 ) ;
@@ -869,7 +882,7 @@ TEXT1 &amp; more
 #########################
 {
 
-  my $XML = new XML::Smart $data1;
+  my $XML = new XML::Smart ;
   $XML->{root}{foo} = "simple";
 
   my $data = $XML->data(nospace => 1 , noheader => 1 ) ;
@@ -884,7 +897,7 @@ TEXT1 &amp; more
 #########################
 {
 
-  my $XML = new XML::Smart $data1;
+  my $XML = new XML::Smart ;
   $XML->{root}{foo} = "<words>foo bar baz</words>";
 
   my $data = $XML->data(nospace => 1 , noheader => 1 ) ;
@@ -894,6 +907,19 @@ TEXT1 &amp; more
 
   my $data = $XML->data(nospace => 1 , noheader => 1 ) ;
   ok($data , '<root><foo>&lt;words&gt;foo bar baz&lt;/words&gt;</foo></root>') ;  
+
+}
+#########################
+{
+  
+  my $XML = XML::Smart->new(q`<?xml version="1.0"?>
+  <root>
+    <entry><b>here's</b> a <i>test</i></entry>
+  </root>
+  `, 'XML::Parser');
+
+  my $data = $XML->data(nospace => 1 , noheader => 1 ) ;
+  ok($data , "<root><entry><b>here's</b> a <i>test</i></entry></root>") ;  
 
 }
 #########################

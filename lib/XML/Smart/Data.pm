@@ -285,7 +285,7 @@ sub _data {
         if ( $$tree{$Key} ne '' ) {
           my $p0 = length($tags) ;
           $tags .= $$tree{$Key} ;        
-          $cont = [$p0,length($tags)] ;
+          $cont = [$p0, length($tags) - $p0] ;
         }
       }
       elsif ($Key =~ /^\/\.CONTENT\/\d+$/) { $tags .= $$tree{$Key} ;}
@@ -355,10 +355,11 @@ sub _data {
       }
       else { &_add_basic_entity($cont) ;}
       
-      my $px = $p1 ;
+      my $pe = $po + $p1 ;
+      my $px = $pe ;
       while( substr($tags , $px , 1) =~ /\s/ ) { ++$px ;}
-      
-      if ( $px > $p1 ) { substr($tags , $p1 , $px-$p1) = '' ;}
+
+      if ( $px > $pe ) { substr($tags , $pe , $px-$pe) = '' ;}
       
       substr($tags , $po , $p1) = $cont ;
     }
