@@ -1,6 +1,9 @@
 Revision history for Perl extension XML::Smart.
 
 
+1.5.3 2004-02-23
+    - Just minor changes and fixes.
+
 1.5.2 2004-02-15
     - Fixed some minor bug on PUSH and UNSHIFT.
     - Added support for multiple nodes for the same tag and interpolation of different nodes.

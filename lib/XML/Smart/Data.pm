@@ -187,8 +187,6 @@ sub _is_unicode {
 sub _data {
   my ( $data , $tree , $tag , $level , $prev_tree , $parsed , $ar_i , @stat ) = @_ ;
 
-  ##print "##>> $tag , $level , $prev_tree , $parsed , $ar_i\n" ;
-
   if (ref($tree) eq 'XML::Smart') { $tree = $$tree->{point} ;}
   
   if ($$parsed{"$tree"}) { return ;}
@@ -213,7 +211,6 @@ sub _data {
     if ( !$stat[5] && $tree->{'/order'} ) {
       my %keys ;
       foreach my $keys_i ( @{$tree->{'/order'}} ) {
-        ##if ( !$keys{$keys_i} && exists $$tree{$keys_i}  ) {
         if ( exists $$tree{$keys_i} && (!ref($$tree{$keys_i}) || ref($$tree{$keys_i}) eq 'HASH' || (ref($$tree{$keys_i}) eq 'ARRAY' && exists $$tree{$keys_i}[ $keys{$keys_i} ] ) ) ) {        
           push(@all_keys , $keys_i) ;
           
@@ -229,16 +226,10 @@ sub _data {
     }
     else { @all_keys = sort keys %$tree ;}
     
-    ##print "*** $tree->{'/order'} >> @all_keys\n" ;
-    
-    #if ( (defined $$tree{CONTENT} && $$tree{CONTENT} ne '') || (defined $$tree{content} && $$tree{content} ne '')) { $stat[0] = 1 ; $ident = '' ;}
-    
     my %array_i ;
 
     foreach my $Key ( @all_keys ) {
       if ($Key eq '' || $Key eq '/order' || $Key eq '/nodes') { next ;}
-
-      ##print "**>> $Key >> $$tree{$Key} > $array_i{$Key}\n" ;
       
       if (ref($$tree{$Key})) {
         my $k = $$tree{$Key} ;
@@ -305,19 +296,15 @@ sub _data {
       }
     }
     
-    #print "<<\n $args,$args_end,$tags,$cont,$stat_1 >>\n" ;
-    
     &_add_basic_entity($cont) if $cont ne '' ;
     
     if ($args_end ne '') {
       $args .= $args_end ;
       $args_end = undef ;
     }
-    
-    #print "cont [$cont] $tags , $args , $cont\n" ;
-    
+
     if (!@all_keys) {
-      $$data .= qq`$ident<$tag/>` ;
+      $$data .= qq`$ident<$tag/>` if $tag ne '' ;
     }
     elsif ($args ne '' && $tags ne '') {
       $$data .= qq`$ident<$tag$args>` if $tag ne '' ;

@@ -25,7 +25,7 @@ use XML::Smart::Data qw(data) ;
 use XML::Smart::XPath qw(xpath XPath xpath_pointer XPath_pointer) ;
 
 our ($VERSION) ;
-$VERSION = '1.5.2' ;
+$VERSION = '1.5.3' ;
 
 #################
 # NO_XML_PARSER #
