@@ -30,7 +30,19 @@ $VERSION = '1.0' ;
   
   use vars qw($NO_XML_PARSER);
   
+  my ( $SIG_WARN , $SIG_DIE )  ;
 
+sub _unset_sig_warn {
+  $SIG_WARN = $SIG{__WARN__} ;
+  $SIG_DIE = $SIG{__DIE__} ;
+  $SIG{__WARN__} = sub {} ;
+  $SIG{__DIE__} = sub {} ;
+}
+
+sub _reset_sig_warn {
+  $SIG{__WARN__} = $SIG_WARN ;
+  $SIG{__DIE__} = $SIG_DIE ;
+}
 
 ###################
 # LOAD_XML_PARSER #
@@ -39,26 +51,22 @@ $VERSION = '1.0' ;
 sub load_XML_Parser {
   return if $NO_XML_PARSER ;
   
-  eval('use XML::Parser ;') ;
-  if ($@) { return( undef ) ;}
+  eval {
+    _unset_sig_warn() ;
+      eval('use XML::Parser ;') ;
+    _reset_sig_warn() ;
+    if ($@) { $@ = undef ; return( undef ) ;}
+  } ;
   
   my ($xml , $tree) ;
   
   eval {
-    my $sig_warn = $SIG{__WARN__} ;
-    my $sig_die = $SIG{__DIE__} ;
-    
-    $SIG{__WARN__} = sub {} ;
-    $SIG{__DIE__} = sub {} ;
-    
-    no strict ;
-  
-    my $data = '<root><foo arg1="t1" arg2="t2" /></root>' ;
-    $xml = XML::Parser->new(Style => 'Tree') ;
-    $tree = $xml->parse($data) ;
-    
-    $SIG{__WARN__} = $sig_warn ;
-    $SIG{__DIE__} = $sig_die ;
+    _unset_sig_warn() ;
+      no strict ;
+      my $data = '<root><foo arg1="t1" arg2="t2" /></root>' ;
+      $xml = XML::Parser->new(Style => 'Tree') ;
+      $tree = $xml->parse($data) ;
+    _reset_sig_warn() ;
   } ;
   
   if (!$tree || ref($tree) ne 'ARRAY') { return( undef ) ;}
@@ -71,8 +79,10 @@ sub load_XML_Parser {
 #########################
 
 sub load_XML_Smart_Parser {
-  eval('use XML::Smart::Parser ;') ;
-  if ($@) { return( undef ) ;}
+  _unset_sig_warn() ;
+    eval('use XML::Smart::Parser ;') ;
+  _reset_sig_warn() ;
+  if ($@) { $@ = undef ; return( undef ) ;}
   return(1) ;
 }
 
@@ -81,8 +91,10 @@ sub load_XML_Smart_Parser {
 #############################
 
 sub load_XML_Smart_HTMLParser {
-  eval('use XML::Smart::HTMLParser ;') ;
-  if ($@) { return( undef ) ;}
+  _unset_sig_warn() ;
+    eval('use XML::Smart::HTMLParser ;') ;
+  _reset_sig_warn() ;
+  if ($@) { $@ = undef ; return( undef ) ;}
   return(1) ;
 }
 
@@ -181,6 +193,8 @@ sub parse {
 
   if ( $args{no_order} ) { $xml->{SMART}{no_order} = 1 ;}
   if ( $args{no_nodes} ) { $xml->{SMART}{no_nodes} = 1 ;}
+  
+  if ( $args{use_spaces} ) { $xml->{SMART}{use_spaces} = 1 ;}
   
   $xml->{SMART}{on_start} = $args{on_start} if ref($args{on_start}) eq 'CODE' ;
   $xml->{SMART}{on_char}  = $args{on_char}  if ref($args{on_char})  eq 'CODE' ;
@@ -366,7 +380,7 @@ sub _Char_process {
 
   my $content = $_[0] ;
   
-  if ( $content !~ /\S+/s ) { return ;}
+  if ( !$this->{SMART}{use_spaces} && $content !~ /\S+/s ) { return ;}
 
   ######
   

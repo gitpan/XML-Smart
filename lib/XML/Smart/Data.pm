@@ -130,7 +130,15 @@ sub data {
   
   if ( $args{noheader} ) { $xml = '' ; $metagen = '' if $args{nometagen} eq '' ;}
   
-  $data = $xml . $metagen . $meta . $data ;
+  my $dtd ;
+  
+  if ( !$args{nodtd} && $$this->{DTD} ) {
+    $dtd = ref $$this->{DTD} ? $$this->{DTD}->CutDTD : $$this->{DTD} ;
+    $dtd =~ s/\s*$// ;
+    $dtd = "\n$dtd" if $dtd ne '' && !$args{nospace} ;
+  }
+  
+  $data = $xml . $metagen . $meta . $dtd . $data ;
   
   if ($xml eq '') { $data =~ s/^\s+//gs ;}
   
@@ -191,10 +199,12 @@ sub _is_unicode {
 sub _data {
   my ( $data , $tree , $tag , $level , $prev_tree , $parsed , $ar_i , $node_type , @stat ) = @_ ;
 
-  if (ref($tree) eq 'XML::Smart') { $tree = $$tree->{point} ;}
+  if (ref($tree) eq 'XML::Smart') { $tree = defined $$tree->{content} ? $$tree->{content} : $$tree->{point} ;}
   
-  if ($$parsed{"$tree"}) { return ;}
-  $$parsed{"$tree"}++ ;
+  if ( ref($tree) ) {
+    if ($$parsed{"$tree"}) { return ;}
+    ++$$parsed{"$tree"} ;
+  }
   
   my $ident = "\n" ;
   $ident .= '  ' x $level if !$stat[0] ;
@@ -215,7 +225,7 @@ sub _data {
     if ( !$stat[5] && $tree->{'/order'} ) {
       my %keys ;
       foreach my $keys_i ( @{$tree->{'/order'}} ) {
-        if ( exists $$tree{$keys_i} && (!ref($$tree{$keys_i}) || ref($$tree{$keys_i}) eq 'HASH' || (ref($$tree{$keys_i}) eq 'ARRAY' && exists $$tree{$keys_i}[ $keys{$keys_i} ] ) ) ) {        
+        if ( exists $$tree{$keys_i} && (!ref($$tree{$keys_i}) || ref($$tree{$keys_i}) eq 'HASH' || ref($$tree{$keys_i}) eq 'XML::Smart' || (ref($$tree{$keys_i}) eq 'ARRAY' && exists $$tree{$keys_i}[ $keys{$keys_i} ] ) ) ) {
           push(@all_keys , $keys_i) ;
           
           if ( ++$keys{$keys_i} == 2 && ref $$tree{$keys_i} eq 'ARRAY' ) {
@@ -234,7 +244,7 @@ sub _data {
 
     foreach my $Key ( @all_keys ) {
       if ($Key eq '' || $Key eq '/order' || $Key eq '/nodes') { next ;}
-            
+
       if ( $Key eq '!--' && (!ref($$tree{$Key}) || ( ref($$tree{$Key}) eq 'HASH' && (keys %{$$tree{$Key}}) == 1 && (defined $$tree{$Key}{CONTENT} || defined $$tree{$Key}{content}) ) ) ) {
         my $ct = $$tree{$Key} ;
         if (ref $$tree{$Key}) { $ct = defined $$tree{$Key}{CONTENT} ? $$tree{$Key}{CONTENT} : $$tree{$Key}{content} ;} ;
@@ -243,7 +253,9 @@ sub _data {
       elsif (ref($$tree{$Key})) {
         my $k = $$tree{$Key} ;
         my $i ;
-        if (ref $k eq 'XML::Smart') { $k = ${$$tree{$Key}}->{point} ;}
+        if (ref $k eq 'XML::Smart') {
+          $k = defined ${$$tree{$Key}}->{content} ? ${$$tree{$Key}}->{content} : ${$$tree{$Key}}->{point} ;
+        }
         elsif ( ref $k eq 'ARRAY' && $multi_keys{$Key} ) {
           $i = $array_i{$Key}++ if $#{$k} > 0 ;
         }
@@ -254,7 +266,7 @@ sub _data {
         my $k = [$$tree{$Key}] ;
         $args .= &_data(\$tags,$k,$Key, $level+1 , $tree , $parsed , undef , $$tree{'/nodes'}{$Key} , @stat) ;
       }
-      elsif ("\L$Key\E" eq 'content') {
+      elsif (lc($Key) eq 'content') {
         if ( tied($$tree{$Key}) && $$tree{$Key} =~ /\S/s ) {
           $ident = '' ; $stat[1] += 2 ;
         }
@@ -305,7 +317,7 @@ sub _data {
       }
     }
     
-    if ( $cont ) {
+    if ( $cont ne '' ) {
       my ( $po , $p1 ) = @$cont ;
       my $cont = substr($tags , $po , $p1) ;
         
@@ -341,6 +353,8 @@ sub _data {
       substr($tags , $po , $p1) = $cont ;
     }
     
+    ##print "***$tag>> $args,$args_end,$tags,$cont,$stat_1 [@all_keys]\n" ;
+    
     if ($args_end ne '') {
       $args .= $args_end ;
       $args_end = undef ;
@@ -363,6 +377,9 @@ sub _data {
       $$data .= $tags ;
       $$data .= $ident if !$cont ;
       $$data .= qq`</$tag>` if $tag ne '' ;
+    }
+    else {
+      $$data .= qq`$ident<$tag></$tag>` if $tag ne '' ;
     }
   }
   elsif (ref($tree) eq 'ARRAY') {
@@ -439,7 +456,7 @@ sub _data {
       my $k = $stat[4] ? $tag : &_check_key($tag) ;
       if    ($stat[3] == 1) { $k = "\L$k\E" ;}
       elsif ($stat[3] == 2) { $k = "\U$k\E" ;}
-      delete $$parsed{"$tree"} ;
+      delete $$parsed{"$tree"} if ref($tree) ;
       return " $k=" . &_add_quote($v) ;
     }
     else { $$data .= $tags ;}
@@ -448,18 +465,25 @@ sub _data {
     my $k = $stat[4] ? $tag : &_check_key($tag) ;
     if    ($stat[3] == 1) { $k = "\L$k\E" ;}
     elsif ($stat[3] == 2) { $k = "\U$k\E" ;}
-    delete $$parsed{"$tree"} ;
+    delete $$parsed{"$tree"} if ref($tree) ;
     return " $k=" . &_add_quote($$tree) ;
   }
   elsif (ref($tree)) {
     my $k = $stat[4] ? $tag : &_check_key($tag) ;
     if    ($stat[3] == 1) { $k = "\L$k\E" ;}
     elsif ($stat[3] == 2) { $k = "\U$k\E" ;}
-    delete $$parsed{"$tree"} ;
+    delete $$parsed{"$tree"} if ref($tree) ;
     return " $k=" . &_add_quote("$tree") ;
   }
+  else {
+    my $k = $stat[4] ? $tag : &_check_key($tag) ;
+    if    ($stat[3] == 1) { $k = "\L$k\E" ;}
+    elsif ($stat[3] == 2) { $k = "\U$k\E" ;}
+    delete $$parsed{"$tree"} if ref($tree) ;
+    return " $k=" . &_add_quote($tree) ;
+  }
 
-  delete $$parsed{"$tree"} ;
+  delete $$parsed{"$tree"} if ref($tree) ;
   return ;
 }
 

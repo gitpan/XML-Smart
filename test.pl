@@ -2,8 +2,10 @@
 
 ###use Data::Dumper ; print Dumper( $XML->tree ) ;
 
+use ExtUtils::MakeMaker qw(prompt) ;
+
 use Test;
-BEGIN { plan tests => 133 } ;
+BEGIN { plan tests => 156 } ;
 use XML::Smart ;
 
 no warnings ;
@@ -23,7 +25,7 @@ my $DATA = q`<?xml version="1.0" encoding="iso-8859-1"?>
 </hosts>
 `;
 
-if(1){
+#if (0) {
 #########################
 {
 
@@ -143,8 +145,6 @@ content2
 
 `) ;
   
-}
-
 }
 #########################
 {
@@ -558,8 +558,8 @@ TEXT1 &amp; more
   my $srv1 = pop( @{$XML->{hosts}{server}} ) ;
   ok( $$srv1{type} , 'b') ;
   
-  my $data = $XML->data(noheader => 1) ;
-  ok($data , '') ;
+  my $data = $XML->data(noheader => 1 , nospace=>1) ;
+  ok($data , '<hosts></hosts>') ;
 
 }
 #########################
@@ -691,7 +691,7 @@ TEXT1 &amp; more
   name => "Help" ,
   level => {from => 1 , to => 99} ,
   } ;
-  
+
   $XML->{menu}{option}[0]{sub}{option}[0] = {
   name => "Busca" ,
   level => {from => 1 , to => 99} ,
@@ -1009,15 +1009,147 @@ TEXT1 &amp; more
 #########################
 {
 
+  use XML::Smart::DTD ;
+
+  my $dtd = XML::Smart::DTD->new(q`
+<!DOCTYPE curso [
+<!ELEMENT curso (objetivo|descricao , curriculo? , aluno+ , professor+)>
+<!ATTLIST curso
+          centro  CDATA #REQUIRED
+          nome    (a|b|c|"a simple | test",d) #REQUIRED "a"
+          age    CDATA
+>
+<!ELEMENT objetivo (#PCDATA)>
+<!ELEMENT curriculo (disciplina+)>
+<!ELEMENT disciplina (requisito , professor+)>
+<!ATTLIST disciplina
+          codigo     CDATA #REQUIRED
+          ementa     CDATA #REQUIRED
+>
+<!ELEMENT descricao (#PCDATA)>
+<!ELEMENT requisito (#PCDATA)>
+<!ELEMENT professor (#PCDATA)>
+<!ELEMENT br EMPTY>
+]>
+  `) ;
+  
+  ok( $dtd->elem_exists('curso') ) ;
+  ok( $dtd->elem_exists('objetivo') ) ;
+  ok( $dtd->elem_exists('curriculo') ) ;
+  ok( $dtd->elem_exists('disciplina') ) ;
+  ok( $dtd->elem_exists('descricao') ) ;
+  ok( $dtd->elem_exists('requisito') ) ;  
+  ok( $dtd->elem_exists('professor') ) ;  
+  ok( $dtd->elem_exists('br') ) ;  
+  
+  ok( $dtd->is_elem_req('requisito') ) ;
+  ok( $dtd->is_elem_uniq('requisito') ) ;
+  
+  ok( $dtd->is_elem_opt('curriculo') ) ;
+  ok( !$dtd->is_elem_req('curriculo') ) ;
+  
+  ok( $dtd->is_elem_multi('professor') ) ;
+  
+  ok( $dtd->is_elem_pcdata('professor') ) ;
+  ok( $dtd->is_elem_empty('br') ) ;
+
+  ok( $dtd->attr_exists('curso','centro') ) ;
+  ok( $dtd->attr_exists('curso','nome') ) ;
+  
+  ok( $dtd->attr_exists('curso','centro','nome') ) ;
+  
+  ok( !$dtd->attr_exists('curso','centro','nomes') ) ;
+  
+  my @attrs = $dtd->get_attrs('curso') ;
+  ok( join(" ",@attrs) , 'age centro nome') ;
+  
+  my @attrs = $dtd->get_attrs_req('curso') ;
+  ok( join(" ",@attrs) , 'centro nome') ;
+  
+}
+#########################
+{
+
+  my $xml = XML::Smart->new()->{cds} ;
+  
+  $xml->{album}[0] = {
+  title => 'foo' ,
+  artist => 'the foos' ,
+  tracks => 8 ,
+  } ;
+  
+  $xml->{album}[1] = {
+  title => 'bar' ,
+  artist => 'the barss' ,
+  tracks => [qw(6 7)] ,
+  time => [qw(60 70)] ,
+  type => 'b' ,
+  } ;
+  
+  $xml->{album}[2] = {
+  title => 'baz' ,
+  artist => undef ,
+  tracks => 10 ,
+  type => '' ,
+  br => 123 ,
+  } ;
+  
+  $xml->{creator} = 'Joe' ;
+  $xml->{date} = '2000-01-01' ;
+  $xml->{type} = 'a' ;
+  
+  $xml->{album}[0]{title}->set_node(1);
+  
+  ok( $xml->data( noheader=>1 , nospace=>1) , q`<cds creator="Joe" date="2000-01-01" type="a"><album artist="the foos" tracks="8"><title>foo</title></album><album artist="the barss" title="bar" type="b"><time>60</time><time>70</time><tracks>6</tracks><tracks>7</tracks></album><album artist="" br="123" title="baz" tracks="10" type=""/></cds>`) ;
+  
+  $xml->apply_dtd(q`
+<!DOCTYPE cds [
+<!ELEMENT cds (album+)>
+<!ATTLIST cds
+          creator  CDATA
+          date     CDATA #REQUIRED
+          type     (a|b|c) #REQUIRED "a"
+>
+<!ELEMENT album (artist , tracks+ , time? , auto , br?)>
+<!ATTLIST album
+          title     CDATA #REQUIRED
+          type     (a|b|c) #REQUIRED "a"
+>
+<!ELEMENT artist (#PCDATA)>
+<!ELEMENT tracks (#PCDATA)>
+<!ELEMENT auto (#PCDATA)>
+<!ELEMENT br EMPTY>
+]>
+  `);
+  
+  ok( $xml->data(noheader=>1 , nospace=>1) , q`<!DOCTYPE cds [
+<!ELEMENT cds (album+)>
+<!ELEMENT album (artist , tracks+ , time? , auto , br?)>
+<!ELEMENT artist (#PCDATA)>
+<!ELEMENT tracks (#PCDATA)>
+<!ELEMENT auto (#PCDATA)>
+<!ELEMENT br EMPTY>
+<!ATTLIST cds
+          creator  CDATA
+          date     CDATA #REQUIRED
+          type     (a|b|c) #REQUIRED "a"
+>
+<!ATTLIST album
+          title     CDATA #REQUIRED
+          type     (a|b|c) #REQUIRED "a"
+>
+]><cds creator="Joe" date="2000-01-01" type="a"><album title="foo" type="a"><artist>the foos</artist><tracks>8</tracks><auto></auto></album><album title="bar" type="b"><artist>the barss</artist><tracks>6</tracks><tracks>7</tracks><time>60</time><auto></auto></album><album title="baz" type="a"><artist></artist><tracks>10</tracks><auto></auto><br/></album></cds>` );
+
+}
+#########################
+{
+
   eval(q`use LWP::UserAgent`) ;
   if ( !$@ ) {
   
     my $url = 'http://www.perlmonks.org/index.pl?node_id=16046' ;
-  
-    print "\nURL: $url\n" ;
-    print "Do you want to test XML::Smart with an URL? (y|n*) " ;
-    
-    chomp( my $opt = <STDIN>);
+
+    my $opt = prompt("\nURL: $url\nDo you want to test XML::Smart with an URL?","n");
     
     if ( $opt =~ /^\s*(?:y|s)/si ) {
       print "\nGetting URL... " ;

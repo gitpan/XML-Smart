@@ -42,9 +42,10 @@ sub _generate_nulltree {
   ##print "GEN>> @tree\n" ;
 
   foreach my $tree_i ( @tree ) {
-    ##print "*> $tree_i >> $keyprev # $iprev \n" ;
-    ##use Data::Dumper ;
-    ##print Dumper( [$tree , $treeprev , $array] ) ;
+    #print "*> $tree_i >> $keyprev # $iprev \n" ;
+    #use Data::Dumper ;
+    #print Dumper( [$tree , $treeprev , $array] ) ;
+    #print "=====================\n" ;
     
     if (ref($tree) ne 'HASH' && ref($tree) ne 'ARRAY') {
       my $cont = $$treeprev{$keyprev} ;
@@ -92,11 +93,25 @@ sub _generate_nulltree {
       }
       else {
         if ( $treeprev ) {
-          if ( ref($treeprev) eq 'ARRAY' ) {
-            push( @{ $$treeprev[$iprev]{$keyprev}{'/order'} }  , $tree_i) ;
+          if ( $array ) {
+            if ( ref($treeprev) eq 'ARRAY' ) {
+              push( @{ $$treeprev[$iprev]{'/order'} } , keys_valids($$treeprev[$iprev]) ) if !$$treeprev[$iprev]{'/order'} || !@{ $$treeprev[$iprev]{'/order'} } ;
+              push( @{ $$treeprev[$iprev]{'/order'} } , $tree_i) ;
+            }
+            else {
+              push( @{ $$treeprev{'/order'} } , keys_valids($treeprev) ) if !$$treeprev{'/order'} || !@{ $$treeprev{'/order'} } ;
+              push( @{ $$treeprev{'/order'} } , $tree_i ) ;
+            }
           }
           else {
-            push( @{ $$treeprev{$keyprev}{'/order'} }  , $tree_i) ;
+            if ( ref($treeprev) eq 'ARRAY' ) {
+              push( @{ $$treeprev[$iprev]{$keyprev}{'/order'} } , keys_valids($$treeprev[$iprev]{$keyprev}) ) if !$$treeprev[$iprev]{$keyprev}{'/order'} || !@{ $$treeprev[$iprev]{$keyprev}{'/order'} } ;
+              push( @{ $$treeprev[$iprev]{$keyprev}{'/order'} } , $tree_i) ;
+            }
+            else {
+              push( @{ $$treeprev{$keyprev}{'/order'} } , keys_valids($$treeprev{$keyprev}) ) if !$$treeprev{$keyprev}{'/order'} || !@{ $$treeprev{$keyprev}{'/order'} } ;
+              push( @{ $$treeprev{$keyprev}{'/order'} } , $tree_i ) ;
+            }
           }
         }
         $$tree{$tree_i} = {} ;
@@ -121,6 +136,19 @@ sub _generate_nulltree {
   ##use Data::Dumper ; print Dumper( $saver->{tree} , $saver->{point} , $saver->{back} , $saver->{array} );
 
   return( 1 ) ;
+}
+
+sub keys_valids {
+  my $tree = shift ;
+  return () if ref $tree ne 'HASH' ;
+  my @keys ;
+  
+  foreach my $Key (sort keys %$tree ) {
+    if ($Key eq '' || $Key eq '/order' || $Key eq '/nodes') { next ;}
+    push(@keys , $Key) ;
+  }
+  
+  return @keys ;
 }
 
 #################
@@ -149,10 +177,14 @@ sub FETCH {
   my $this = shift ;
   my ($i) = @_ ;
   my $key = $this->{saver}->{key} ;
-  
+    
+  if ( $this->{saver}->{null} ) {
+    &XML::Smart::Tie::_generate_nulltree($this->{saver},$key,$i) ;
+  }
+
   my $point = '' ;
-  
-  #print "A-FETCH>> $key , $i >> @{$this->{saver}->{keyprev}} [$this->{saver}->{null}]\n" ;
+
+  #print "A-FETCH>> $key , $i >> @{$this->{saver}->{keyprev}} >> [$this->{saver}->{null}]\n" ;
   
   if ($this->{saver}->{array}) {
     if (!exists $this->{saver}->{array}[$i] ) {
@@ -196,7 +228,7 @@ sub STORE {
   
   if ($this->{saver}->{array}) {
     if ( !exists $this->{saver}->{array}[$i] && $key !~ /^\/\.CONTENT/ ) {
-      push( @{$this->{saver}->{back}->{'/order'}} , $key) ;
+      push( @{$this->{saver}->{back}->{'/order'}} ) ;
     }
     return $this->{saver}->{array}[$i] = $_[0] ;
   }
@@ -221,7 +253,7 @@ sub STORE {
         my %keys = map { ( $_ eq '/order' || $_ eq '/nodes' ? () : ($_ => 1) ) } keys %{$this->{saver}->{back}} ;
         push( @{$this->{saver}->{back}->{'/order'}} , sort keys %keys ) ;
       }
-      push( @{$this->{saver}->{back}->{'/order'}} , $key) ;
+      push( @{$this->{saver}->{back}->{'/order'}} , $key ) ;
     }
     return $this->{saver}->{array}[$i] = $_[0] ;
   }
@@ -470,13 +502,25 @@ sub FETCH {
   my $this = shift ;
   my ( $key ) = @_ ;
   my $i ;
+  
+  if ( $this->{saver}->{null} ) {
+    &XML::Smart::Tie::_generate_nulltree($this->{saver},$key,$i) ;
+  }
 
-  #print "H-FETCH>> $key , $i >> @{$this->{saver}->{keyprev}}\n" ;
+  #print "H-FETCH>> $key >> ". ( $this->{saver}->{keyprev} ? "@{$this->{saver}->{keyprev}}" : '' ) ."\n" ;
 
+  #print "**FETCH>> $this->{saver}->{point}\n" ;
+  
   my $point = '' ;
   my $array ;
   
-  if (ref($this->{saver}->{point}{$key}) eq 'ARRAY') {
+  if (0&&ref($this->{saver}->{point}) eq 'ARRAY') {
+    $array = $this->{saver}->{point} ;
+    $point = $this->{saver}->{point}[0] ;
+    my $xml = &XML::Smart::clone($this->{saver},$point,undef,$array, undef,0) ;
+    return $xml->{$key} ;
+  }
+  elsif (ref($this->{saver}->{point}{$key}) eq 'ARRAY') {
     $array = $this->{saver}->{point}{$key} ;
     $point = $this->{saver}->{point}{$key}[0] ;
     $i = 0 ;
@@ -523,7 +567,7 @@ sub STORE {
   my $this = shift ;
   my $key = shift ;
 
-  #print "H-STORE>> $key , $i >> @{$this->{saver}->{keyprev}} >> [$this->{saver}->{null}]\n" ;
+  ##print "H-STORE>> $key >> @{$this->{saver}->{keyprev}} >> [$this->{saver}->{null}]\n" ;
   
   if ( $this->{saver}->{null} ) {
     &XML::Smart::Tie::_generate_nulltree($this->{saver},$key) ;
@@ -531,7 +575,13 @@ sub STORE {
   
   &XML::Smart::Tie::_delete_XPATH($this->{saver}) ;
   
-  if ( ref($this->{saver}->{point}{$key}) eq 'ARRAY' ) {
+  my @call = caller ;
+  ##print "***STORE>> $this->{saver}->{point} [@call] $_[0]\n" ;
+  
+  if (ref($this->{saver}->{point}) eq 'ARRAY') {
+    return $this->{saver}->{point}[0]{$key} = $_[0] ;
+  }
+  elsif ( ref($this->{saver}->{point}{$key}) eq 'ARRAY' ) {
     return $this->{saver}->{point}{$key}[0] = $_[0] ;
   }
   else {
@@ -547,7 +597,7 @@ sub STORE {
       if ($key ne '/order' && $key ne '/nodes') {
         if (!$this->{saver}->{keyorder}) { $this->_keyorder ;}
         push(@{$this->{saver}->{keyorder}} , $key) ;
-        push(@{$this->{saver}->{point}{'/order'}} , $key) ;
+        push(@{$this->{saver}->{point}{'/order'}} , $key ) ;
       }
     }
     return $this->{saver}->{point}{$key} = $_[0] ;
