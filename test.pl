@@ -3,7 +3,7 @@
 ###use Data::Dumper ; print Dumper( $XML->tree ) ;
 
 use Test;
-BEGIN { plan tests => 126 } ;
+BEGIN { plan tests => 130 } ;
 use XML::Smart ;
 
 no warnings ;

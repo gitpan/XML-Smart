@@ -23,7 +23,7 @@ use XML::Smart::Tie ;
 use XML::Smart::Tree ;
 
 our ($VERSION) ;
-$VERSION = '1.5.6' ;
+$VERSION = '1.5.7' ;
 
 ###############
 # AUTOLOADERS #
@@ -2028,9 +2028,9 @@ key. So this actually returns another object, pointhing (inside it) to the key:
 
 =head1 TODO
 
-* Finish XPath implementation.
-* DTD.
-* implement a better way to declare meta tags.
+  * Finish XPath implementation.
+  * DTD.
+  * Implement a better way to declare meta tags.
 
 =head1 SEE ALSO
 
@@ -2049,12 +2049,15 @@ Graciliano M. P. <gm@virtuasites.com.br>
 
 I will appreciate any type of feedback (include your opinions and/or suggestions). ;-P
 
-Before make this module I dislike to use XML, and made everything to avoid it.
-Now I can use XML fine! ;-P
+Enjoy and thanks for who are enjoying this tool and have sent e-mails! ;-P
+
+=head1 THANKS
+
+Thanks to Rusty Allen for the extensive tests of CDATA and BINARY handling of XML::Smart.
+
+Thanks to Ted Haining to point a Perl-5.8.0 bug for tied keys of a HASH.
 
 Thanks to everybody that have sent ideas, patches or pointed bugs.
-
-Enjoy and thanks for who are enjoying this tool and have sent e-mails! ;-P
 
 =head1 COPYRIGHT
 

@@ -1,5 +1,13 @@
 Revision history for Perl extension XML::Smart.
 
+1.5.7 2004-03-23
+    - Fixed minor bug with BINARY data and XML::Parser, that handles each line
+      of a content as a multiple content.
+    
+    * Thanks to Rusty Allen <mallen8@houston.sns.slb.com> for the extensive tests
+      of CDATA and BINARY handling of XML::Smart.
+
+
 1.5.6 2004-03-23
     - Fixed minor mistake on set_cdata() method and cdata id inside data().
 

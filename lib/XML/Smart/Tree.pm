@@ -254,6 +254,10 @@ sub _Init {
 
 sub _Start {
   my $this = shift ; ##print "START>> @_\n" ;
+  
+  if ( $this->{LAST_CALL} eq 'char' ) { _Char_process( $this , delete $this->{CONTENT_BUFFER} ) ;}
+  $this->{LAST_CALL} = 'start' ;
+  
   my ($tag , %args) = @_ ;
   
   if    ( $this->{SMART}{tag} == 1 ) { $tag = lc($tag) ;}
@@ -336,18 +340,32 @@ sub _Start {
 #########
 # _CHAR #
 #########
+#
+# XML::Parser parse each line as a different call to _Char().
+# For XML::Smart multiple calls to _Char() occurs only when the content
+# have other nodes inside.
+#
 
 sub _Char {
+  my $this = shift ;
+  $this->{CONTENT_BUFFER} .= $_[0] ;
+  $this->{LAST_CALL} = 'char' ;
+  return ;
+}
+
+sub _Char_process {
   my $this = shift ;
   #print "CONT>> ##@_##\n" ;
 
   my $content = $_[0] ;
   
+  if ( $content !~ /\S+/s ) { return ;}
+
+  ######
+  
   if (! defined $this->{PARSING}{p}{'dt:dt'} && defined $this->{PARSING}{p}{'DT:DT'}) {
     $this->{PARSING}{p}{'dt:dt'} = delete $this->{PARSING}{p}{'DT:DT'} ;
   }
-  
-  if ( $content !~ /\S+/s ) { return ;}
   
   if ( $this->{PARSING}{p}{'dt:dt'} =~ /binary\.base64/si ) {
     require XML::Smart::Base64 ;
@@ -369,6 +387,8 @@ sub _Char {
     }
   }
   elsif ($this->{NOENTITY}) { &_parse_basic_entity($content) ;}
+  
+  ######
   
   if ( !exists $this->{PARSING}{p}{CONTENT} ) {
     $this->{PARSING}{p}{CONTENT} = $content ;
@@ -406,6 +426,10 @@ sub _Char {
 
 sub _End { ##print "END>> @_[1] >> $_[0]->{PARSING}{p}{'/tag'}\n" ;
   my $this = shift ;
+  
+  if ( $this->{LAST_CALL} eq 'char' ) { _Char_process( $this , delete $this->{CONTENT_BUFFER} ) ;}
+  $this->{LAST_CALL} = 'end' ;
+  
   my $tag = shift ;
   
   if    ( $this->{SMART}{tag} == 1 ) { $tag = lc($tag) ;}
@@ -436,7 +460,7 @@ sub _End { ##print "END>> @_[1] >> $_[0]->{PARSING}{p}{'/tag'}\n" ;
   }
 
   $this->{PARSING}{p} = $back ;
-  
+    
   return ;
 }
 
@@ -453,6 +477,7 @@ sub _Final {
   }
   
   delete $this->{TIED_CONTENTS} ;
+  delete $this->{LAST_CALL} ;
   
   delete($this->{PARSING}) ;
   return($tree) ;
@@ -463,4 +488,12 @@ sub _Final {
 #######
 
 1;
+
+
+__END__
+
+
+
+
+
 
