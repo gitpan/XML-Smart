@@ -835,6 +835,36 @@ content2
 #########################
 {
 
+  my $XML = new XML::Smart $data1;
+  $XML->{root}{foo} = "simple";
+
+  my $data = $XML->data(nospace => 1 , noheader => 1 ) ;
+  ok($data , '<root foo="simple"/>') ;
+  
+  $XML->{root}{foo}->set_cdata(1) ;
+
+  my $data = $XML->data(nospace => 1 , noheader => 1 ) ;
+  ok($data , '<root><foo><![CDATA[simple]]></foo></root>') ;
+  
+}
+#########################
+{
+
+  my $XML = new XML::Smart $data1;
+  $XML->{root}{foo} = "<words>foo bar baz</words>";
+
+  my $data = $XML->data(nospace => 1 , noheader => 1 ) ;
+  ok($data , '<root><foo><![CDATA[<words>foo bar baz</words>]]></foo></root>') ;
+  
+  $XML->{root}{foo}->set_cdata(0) ;
+
+  my $data = $XML->data(nospace => 1 , noheader => 1 ) ;
+  ok($data , '<root><foo>&lt;words&gt;foo bar baz&lt;/words&gt;</foo></root>') ;  
+
+}
+#########################
+{
+
   my $XML = XML::Smart->new($DATA , 'XML::Smart::Parser') ;
   $XML = $XML->{hosts} ;
   

@@ -305,12 +305,13 @@ sub _data {
       
       if ( $node_type =~ /^(\w+),(\d+),(\d*)$/ ) {
         my ( $node_tp , $node_set ) = ($1,$2) ;
+
         if ( !$node_set ) {
           if    ( $tp == 3 && $node_tp eq 'cdata'  ) { $tp = 0 ;}
           elsif ( $tp == 4 && $node_tp eq 'binary' ) { $tp = 0 ;}
         }
         else {
-          if    ( $node_tp eq 'cdata'  ) { $tp = 2 ;}
+          if    ( $node_tp eq 'cdata'  ) { $tp = 3 ;}
           elsif ( $node_tp eq 'binary' ) { $tp = 4 ;}
         }
       }
@@ -404,7 +405,7 @@ sub _data {
             elsif ( $tp == 4 && $node_tp eq 'binary' ) { $tp = 0 ;}
           }
           else {
-            if    ( $node_tp eq 'cdata'  ) { $tp = 2 ;}
+            if    ( $node_tp eq 'cdata'  ) { $tp = 3 ;}
             elsif ( $node_tp eq 'binary' ) { $tp = 4 ;}
           }
         }

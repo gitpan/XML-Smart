@@ -23,7 +23,7 @@ use XML::Smart::Tie ;
 use XML::Smart::Tree ;
 
 our ($VERSION) ;
-$VERSION = '1.5.5' ;
+$VERSION = '1.5.6' ;
 
 ###############
 # AUTOLOADERS #
@@ -594,7 +594,7 @@ sub order {
 sub set_node_type {
   my $this = shift ;
   my ( $type , $bool ) = @_ ;
-  if ( !@_ ) { $bool = 1 ;}
+  if ( $#_ < 1 ) { $bool = 1 ;}
   
   my $key = $this->key ;
   
