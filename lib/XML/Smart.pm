@@ -23,7 +23,7 @@ use XML::Smart::Tie ;
 use XML::Smart::Tree ;
 
 our ($VERSION) ;
-$VERSION = '1.5.4' ;
+$VERSION = '1.5.5' ;
 
 ###############
 # AUTOLOADERS #
@@ -222,7 +222,7 @@ sub back {
   my $this = shift ;
   
   my @tree = @{$$this->{keyprev}} ;
-  if (!@tree) { return back ;}
+  if (!@tree) { return $this ;}
   
   my $last = pop(@tree) ;
   my $i = 0 ;
@@ -347,11 +347,15 @@ sub copy {
   $$copy->{tree} = &_copy_hash($this->tree) ;
   $$copy->{keyprev} = $$this->{keyprev} ;
   
+  bless($copy, ref($this)) ;
+  
   my ( $back , $key , $i ) = $copy->back ;
   
-  $copy = $back->{$key} ;
-  $copy = $back->[$i] if $i ;
-  
+  if ( $key ne '' ) {
+    $copy = $back->{$key} ;
+    $copy = $back->[$i] if $i ;
+  }
+    
   return( $copy ) ;
 }
 
@@ -541,7 +545,9 @@ sub set_node {
   my $nodes = $back->{'/nodes'}->pointer ;
   
   if ( $bool ) {
-    $$nodes{$key} = 1 ;
+    if ( $$nodes{$key} =~ /^(\w+,\d+),(\d*)/ ) { $$nodes{$key} = "$1,1" ;}
+    else { $$nodes{$key} = 1 ;}
+
     if ( !$this->{CONTENT} ) {
       my $content = $this->content ;
       $this->{CONTENT} = $content if $content ne '' ;
@@ -579,6 +585,132 @@ sub order {
   my $pointer = $$this->{point} ;
   return @{$$pointer{'/order'}} if defined $$pointer{'/order'} && ref($$pointer{'/order'}) eq 'ARRAY' ;
   return() ;
+}
+
+#############
+# SET_CDATA #
+#############
+
+sub set_node_type {
+  my $this = shift ;
+  my ( $type , $bool ) = @_ ;
+  if ( !@_ ) { $bool = 1 ;}
+  
+  my $key = $this->key ;
+  
+  my $back = $this->back ;
+  
+  $back->{'/nodes'} = {} if $back->{'/nodes'}->null ;
+  my $nodes = $back->{'/nodes'}->pointer ;
+  
+  if ( $bool ) {
+    if ( $$nodes{$key} =~ /^\w+,\d+,(\d*)/ ) {
+      my $val = $1 ;
+      $$nodes{$key} = "$type,1,$val" ;
+    }
+    else { $$nodes{$key} = "$type,1,$$nodes{$key}" ;}
+
+    if ( !$this->{CONTENT} ) {
+      my $content = $this->content ;
+      $this->{CONTENT} = $content if $content ne '' ;
+    }
+  }
+  else {
+    if ( !$$nodes{$key} ) {
+      my $tp = _data_type( $back->{$key} ) ;
+      if ( $tp > 2 ) { $$nodes{$key} = "$type,0," ;}
+    }
+    elsif ( $$nodes{$key} eq '1' ) { $$nodes{$key} = "$type,0,1" ;}
+    elsif ( $$nodes{$key} =~ /^\w+,\d+,1/ ) { $$nodes{$key} = "$type,0,1" ;}
+    elsif ( $$nodes{$key} =~ /^\w+,\d+,0?$/ ) {
+      delete $$nodes{$key} ;
+      my @keys = keys %$this ;
+      if ( $#keys == 0 && @keys[0] eq 'CONTENT') {
+        my $content = $this->{CONTENT}('.') ;
+        $this->back->pointer->{$key} = $content ;
+      }
+    }
+  }
+}
+
+#############
+# SET_CDATA #
+#############
+
+sub set_cdata {
+  my $this = shift ;
+  $this->set_node_type('cdata',@_) ;
+}
+
+##############
+# SET_BINARY #
+##############
+
+sub set_binary {
+  my $this = shift ;
+  $this->set_node_type('binary',@_) ;
+}
+
+#################
+# SET_AUTO_NODE #
+#################
+
+sub set_auto_node {
+  my $this = shift ;
+  
+  my $key = $this->key ;
+  my $back = $this->back ;
+  
+  $back->{'/nodes'} = {} if $back->{'/nodes'}->null ;
+  my $nodes = $back->{'/nodes'}->pointer ;
+  
+  if ( !$$nodes{$key} || $$nodes{$key} eq '1' ) { ; }
+  elsif ( $$nodes{$key} =~ /^\w+,\d+,1/ ) { $$nodes{$key} = 1 ;}
+  elsif ( $$nodes{$key} =~ /^\w+,\d+,0?$/ ) {
+    delete $$nodes{$key} ;
+    my @keys = keys %$this ;
+    if ( $#keys == 0 && @keys[0] eq 'CONTENT') {
+      my $content = $this->{CONTENT}('.') ;
+      $this->back->pointer->{$key} = $content ;
+    }
+  }
+}
+
+############
+# SET_AUTO #
+############
+
+sub set_auto {
+  my $this = shift ;
+  
+  my $key = $this->key ;
+  my $back = $this->back ;
+  
+  $back->{'/nodes'} = {} if $back->{'/nodes'}->null ;
+  my $nodes = $back->{'/nodes'}->pointer ;
+  
+  delete $$nodes{$key} ;
+  my @keys = keys %$this ;
+  if ( $#keys == 0 && @keys[0] eq 'CONTENT') {
+    my $content = $this->{CONTENT}('.') ;
+    $this->back->pointer->{$key} = $content ;
+  }
+}
+
+##############
+# _DATA_TYPE #
+##############
+
+## 4 binary
+## 3 CDATA
+## 2 content
+## 1 value
+
+sub _data_type {
+  return 4 if ($_[0] =~ /[^\w\d\s!"#\$\%&'\(\)\*\+,\-\.\/:;<=>\?\@\[\\\]\^\`\{\|}~€‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ]/s) ;
+  return 3 if ($_[0] =~ /<.*?>/s) ;
+  return 2 if ($_[0] =~ /[\r\n\t]/s) ;
+  return 1 ;
 }
 
 #######
@@ -776,7 +908,7 @@ sub content {
     return $$this->{point}{$key}[$i] ;
   }
   elsif (exists $$this->{point}{$key}) {
-    if (@_ && ( my $tie = tied($$this->{point}{$key}) )) { $tie->STORE($set_i , $_[0]) ;}
+    if (@_ && ( my $tie = tied($$this->{point}{$key}) ) ) { $tie->STORE($set_i , $_[0]) ;}
     if ( wantarray && ( my $tie = tied($$this->{point}{$key}) ) ) { return $tie->FETCH(1) ;}
     return $$this->{point}{$key} ;
   }
@@ -1345,11 +1477,43 @@ Save the XML data inside a file.
 
 Accept the same OPTIONS of the method B<I<data()>>.
 
+=head2  set_auto
+
+Define the key to be handled automatically. Soo, data() will define automatically if it's a node, content or attribute.
+
+I<** This method is useful to remove set_node(), set_cdata() and set_binary() changes.>
+
+=head2  set_auto_node
+
+Define the key as a node, and data() will define automatically if it's CDATA or BINARY.
+
+I<** This method is useful to remove set_cdata() and set_binary() changes.>
+
+=head2  set_binary(BOOL)
+
+Define the node as a BINARY content when TRUE, or force to B<not> handle it as a BINARY on FALSE.
+
+Example of node handled as BINARY:
+
+  <root><foo dt:dt="binary.base64">PGgxPnRlc3QgAzwvaDE+</foo></root>
+
+Original content of foo (the base64 data):
+
+  <h1>test \x03</h1>
+
+=head2  set_cdata(BOOL)
+
+Define the node as CDATA when TRUE, or force to B<not> handle it as CDATA on FALSE.
+
+Example of CDATA node:
+
+  <root><foo><![CDATA[bla bla bla <tag> bla bla]]></foo></root>
+
 =head2  set_node(BOOL)
 
 Set/unset the current key as a node (tag).
 
-** If BOOL is not defined will use I<true>.
+** If BOOL is not defined will use I<TRUE>.
 
 =head2  set_order(KEYS)
 

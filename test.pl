@@ -3,7 +3,7 @@
 ###use Data::Dumper ; print Dumper( $XML->tree ) ;
 
 use Test;
-BEGIN { plan tests => 100 } ;
+BEGIN { plan tests => 126 } ;
 use XML::Smart ;
 
 no warnings ;
@@ -197,7 +197,7 @@ content2
     <SCRIPT LANGUAGE="JavaScript"><!--
     function stopError() { return true; }
     window.onerror = stopError;
-    document.writeln("some <tag> wirtten!");
+    document.writeln("some >> written!");
     --></SCRIPT>
     <foo2 bar2=x2>
   </body></html>
@@ -206,7 +206,7 @@ content2
   my $data = $XML->data(noheader => 1 , nospace => 1) ;
   $data =~ s/\s//gs ;
   
-  ok($data,q`<html><title>TITLE</title><bodybgcolor="#000000"><foo1bar1="x1"/><SCRIPTLANGUAGE="JavaScript"><_-->functionstopError(){returntrue;}window.onerror=stopError;document.writeln("some&lt;tag&gt;wirtten!");</_--></SCRIPT><foo2bar2="x2"/></body></html>`);
+  ok($data,q`<html><title>TITLE</title><bodybgcolor="#000000"><foo1bar1="x1"/><SCRIPTLANGUAGE="JavaScript"><_-->functionstopError(){returntrue;}window.onerror=stopError;document.writeln("some&gt;&gt;written!");</_--></SCRIPT><foo2bar2="x2"/></body></html>`);
 
 }
 #########################
@@ -596,16 +596,16 @@ content2
 
   my $data = q`
   <root>
-    <foo bar="x"> My Company &amp; Name + &lt;tag&gt; &quot; + &apos;...</foo>
+    <foo bar="x"> My Company &amp; Name + x &gt;&gt; plus &quot; + &apos;...</foo>
   </root>
   `;
 
   my $XML = XML::Smart->new($data , 'XML::Smart::Parser') ;
   
-  ok($XML->{root}{foo} , q` My Company & Name + <tag> " + '...`) ;
+  ok($XML->{root}{foo} , q` My Company & Name + x >> plus " + '...`) ;
   
   my $data = $XML->data(nospace => 1 , noheader => 1 ) ;
-  ok($data , q`<root><foo bar="x"> My Company &amp; Name + &lt;tag&gt; " + '...</foo></root>`) ;
+  ok($data , q`<root><foo bar="x"> My Company &amp; Name + x &gt;&gt; plus " + '...</foo></root>`) ;
 
 }
 #########################
@@ -647,7 +647,7 @@ content2
   my $XML = XML::Smart->new($data , 'XML::Smart::Parser') ;
   
   ok( $XML->{root}{item}{data} , q`some CDATA code <non> <parsed> <tag> end`) ;
-
+  
 }
 #########################
 {
@@ -719,7 +719,6 @@ content2
   $XML->{menu}{arg2}->set_node ;
   my $data = $XML->data(nospace => 1 , noheader => 1 ) ;
   ok($data , q`<menu arg1="123"><arg2>456</arg2></menu>`) ;
-  
 
   $XML->{menu}{arg2}->set_node(0) ;
   my $data = $XML->data(nospace => 1 , noheader => 1 ) ;
@@ -733,6 +732,104 @@ content2
 
   my $data = $XML->data(nospace => 1 , noheader => 1 ) ;
   ok($data , q`<menu arg1="123"/>`) ;
+
+}
+#########################
+{
+
+
+  my $XML = XML::Smart->new() ;
+  $XML->{root}{foo} = "bla bla bla";
+
+  $XML->{root}{foo}->set_node(1) ;
+
+  ok( $XML->tree->{root}{'/nodes'}{foo} , '1' ) ;
+  ok( $XML->tree->{root}{foo}{CONTENT} , "bla bla bla" ) ;  
+
+  $XML->{root}{foo}->set_node(0) ;
+
+  ok( !exists $XML->tree->{root}{foo}{CONTENT} ) ;
+  ok( !exists $XML->tree->{root}{'/nodes'}{foo} ) ;
+  
+  $XML->{root}{foo}->set_cdata(1) ;
+  
+  ok( $XML->tree->{root}{'/nodes'}{foo} , 'cdata,1,' ) ;
+  ok( $XML->tree->{root}{foo}{CONTENT} , "bla bla bla" ) ;  
+  
+  $XML->{root}{foo}->set_node(1) ;
+  
+  ok( $XML->tree->{root}{'/nodes'}{foo} , 'cdata,1,1' ) ;
+  ok( $XML->tree->{root}{foo}{CONTENT} , "bla bla bla" ) ;  
+  
+  $XML->{root}{foo}->set_binary(1) ;
+  
+  ok( $XML->tree->{root}{'/nodes'}{foo} , 'binary,1,1' ) ;
+  ok( $XML->tree->{root}{foo}{CONTENT} , "bla bla bla" ) ;  
+  
+  $XML->{root}{foo}->set_binary(0) ;
+
+  ok( $XML->tree->{root}{'/nodes'}{foo} , 'binary,0,1' ) ;
+  ok( $XML->tree->{root}{foo}{CONTENT} , "bla bla bla" ) ;  
+  
+  $XML->{root}{foo}->set_auto_node ;
+  
+  ok( $XML->tree->{root}{'/nodes'}{foo} , 1 ) ;
+  ok( $XML->tree->{root}{foo}{CONTENT} , "bla bla bla" ) ;  
+  
+  $XML->{root}{foo}->set_cdata(0) ;
+  
+  ok( $XML->tree->{root}{'/nodes'}{foo} , 'cdata,0,1' ) ;
+  ok( $XML->tree->{root}{foo}{CONTENT} , "bla bla bla" ) ;
+  
+  $XML->{root}{foo}->set_binary(0) ;
+  
+  ok( $XML->tree->{root}{'/nodes'}{foo} , 'binary,0,1' ) ;
+  ok( $XML->tree->{root}{foo}{CONTENT} , "bla bla bla" ) ;
+  
+  $XML->{root}{foo}->set_auto ;
+  
+  ok( !exists $XML->tree->{root}{foo}{CONTENT} ) ;
+  ok( !exists $XML->tree->{root}{'/nodes'}{foo} ) ;
+
+}
+#########################
+{
+
+  my $XML = new XML::Smart $data1;
+  $XML->{root}{foo} = "bla bla bla <tag> bla bla";
+
+  my $data = $XML->data(nospace => 1 , noheader => 1 ) ;
+  ok($data , '<root><foo><![CDATA[bla bla bla <tag> bla bla]]></foo></root>') ;
+
+  $XML->{root}{foo}->set_cdata(0) ;
+  
+  $data = $XML->data(nospace => 1 , noheader => 1 ) ;
+  ok($data , '<root><foo>bla bla bla &lt;tag&gt; bla bla</foo></root>') ;
+  
+  $XML->{root}{foo}->set_binary(1) ;
+  
+  $data = $XML->data(nospace => 1 , noheader => 1 ) ;
+  ok($data , '<root><foo dt:dt="binary.base64">YmxhIGJsYSBibGEgPHRhZz4gYmxhIGJsYQ==</foo></root>') ;
+
+}
+#########################
+{
+
+  my $XML = new XML::Smart $data1;
+  $XML->{root}{foo} = "<h1>test \x03</h1>";
+
+  my $data = $XML->data(nospace => 1 , noheader => 1 ) ;
+  ok($data , '<root><foo dt:dt="binary.base64">PGgxPnRlc3QgAzwvaDE+</foo></root>') ;
+
+  $XML->{root}{foo}->set_binary(0) ;
+  
+  $data = $XML->data(nospace => 1 , noheader => 1 ) ;
+  ok($data , "<root><foo>&lt;h1&gt;test \x03\&lt;/h1&gt;</foo></root>") ;
+  
+  $XML->{root}{foo}->set_binary(1) ;
+  
+  $data = $XML->data(nospace => 1 , noheader => 1 ) ;
+  ok($data , '<root><foo dt:dt="binary.base64">PGgxPnRlc3QgAzwvaDE+</foo></root>') ;
 
 }
 #########################

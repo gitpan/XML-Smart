@@ -14,6 +14,7 @@ package XML::Smart::Tree ;
 
 use XML::Smart::Entity qw(_parse_basic_entity) ;
 
+use strict qw(vars) ;
 no warnings ;
 
 our ($VERSION) ;
@@ -176,6 +177,9 @@ sub parse {
   if ( $args{upertag} ) { $xml->{SMART}{tag} = 2 ;}
   if ( $args{lowarg} ) { $xml->{SMART}{arg} = 1 ;}
   if ( $args{uperarg} ) { $xml->{SMART}{arg} = 2 ;}
+
+  if ( $args{no_order} ) { $xml->{SMART}{no_order} = 1 ;}
+  if ( $args{no_nodes} ) { $xml->{SMART}{no_nodes} = 1 ;}
   
   $xml->{SMART}{on_start} = $args{on_start} if ref($args{on_start}) eq 'CODE' ;
   $xml->{SMART}{on_char}  = $args{on_char}  if ref($args{on_char})  eq 'CODE' ;
@@ -255,9 +259,9 @@ sub _Start {
   if    ( $this->{SMART}{tag} == 1 ) { $tag = lc($tag) ;}
   elsif ( $this->{SMART}{tag} == 2 ) { $tag = uc($tag) ;}
   
-  $this->{PARSING}{p}{'/nodes'}{$tag} = 1 ;
+  $this->{PARSING}{p}{'/nodes'}{$tag} = 1 if !$this->{SMART}{no_nodes} ;
   
-  push( @{$this->{PARSING}{p}{'/order'}} , $tag) ;
+  push( @{$this->{PARSING}{p}{'/order'}} , $tag) if !$this->{SMART}{no_order} ;
   
   if ( $this->{SMART}{arg} ) {
     my $type = $this->{SMART}{arg} ;
@@ -281,7 +285,7 @@ sub _Start {
   }
   
   ## Args order:
-  {
+  if ( !$this->{SMART}{no_order} ) {
     my @order ; 
     for(my $i = 1 ; $i < $#_ ; $i+=2) { push( @order , $_[$i] ) ;}
     
@@ -349,10 +353,12 @@ sub _Char {
     require XML::Smart::Base64 ;
     $content = &XML::Smart::Base64::decode_base64($content) ;
     delete $this->{PARSING}{p}{'dt:dt'} ;
-    delete $this->{PARSING}{p}{'/nodes'}{'dt:dt'} ;
-
-    my $nkeys = keys %{$this->{PARSING}{p}{'/nodes'}} ;
-    if ($nkeys < 1) { delete $this->{PARSING}{p}{'/nodes'} ;}
+    
+    if ( $this->{PARSING}{p}{'/nodes'} ) {
+      delete $this->{PARSING}{p}{'/nodes'}{'dt:dt'} ;
+      my $nkeys = keys %{$this->{PARSING}{p}{'/nodes'}} ;
+      if ($nkeys < 1) { delete $this->{PARSING}{p}{'/nodes'} ;}
+    }
     
     if ( $this->{PARSING}{p}{'/order'} ) {
       my @order = @{$this->{PARSING}{p}{'/order'}} ;
@@ -366,7 +372,7 @@ sub _Char {
   
   if ( !exists $this->{PARSING}{p}{CONTENT} ) {
     $this->{PARSING}{p}{CONTENT} = $content ;
-    push(@{$this->{PARSING}{p}{'/order'}} , 'CONTENT') ;
+    push(@{$this->{PARSING}{p}{'/order'}} , 'CONTENT') if !$this->{SMART}{no_order} ;
   }
   else {
     if ( !tied $this->{PARSING}{p}{CONTENT} ) {
@@ -378,12 +384,12 @@ sub _Char {
       $this->{PARSING}{p}{'/.CONTENT/x'} = 0 ;
       $this->{PARSING}{p}{"/.CONTENT/0"} = $cont ;
       
-      splice( @{$this->{PARSING}{p}{'/order'}} , -1,0, "/.CONTENT/0") ; # Add inside (0=init line , 1=end line).
+      splice( @{$this->{PARSING}{p}{'/order'}} , -1,0, "/.CONTENT/0") if !$this->{SMART}{no_order} ;
     }
 
     my $x = ++$this->{PARSING}{p}{'/.CONTENT/x'} ;
     $this->{PARSING}{p}{"/.CONTENT/$x"} = $content ;
-    push( @{$this->{PARSING}{p}{'/order'}} , "/.CONTENT/$x") ;
+    push( @{$this->{PARSING}{p}{'/order'}} , "/.CONTENT/$x") if !$this->{SMART}{no_order} ;
   }
   
   if ( $this->{SMART}{on_char} ) {

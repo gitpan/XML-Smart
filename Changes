@@ -1,5 +1,10 @@
 Revision history for Perl extension XML::Smart.
 
+1.5.5 2004-03-23
+    - Added methods set_auto() , set_auto_node(), set_binary(), set_cdata().
+    - Fixed bug on copy().
+    - Fixed bug with date() when CONTENT key is found and should be CDATA or BINARY.
+
 
 1.5.4 2004-02-23
     - Added autoload of parts of the module, to save load memory.

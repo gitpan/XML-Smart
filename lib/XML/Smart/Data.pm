@@ -46,8 +46,10 @@ sub data {
     else {
       my $ks = keys %$tree ;
       my $n = 1 ;
-      if (ref $$tree{'/nodes'} eq 'HASH')  { ++$n if (keys %{$$tree{'/nodes'}}) ;}
-      if (ref $$tree{'/order'} eq 'ARRAY') { ++$n if @{$$tree{'/order'}} ;}
+      if (ref $$tree{'/nodes'} eq 'HASH')  { ++$n ;}
+      if (ref $$tree{'/order'} eq 'ARRAY') { ++$n ;}
+      #if (ref $$tree{'/nodes'} eq 'HASH')  { ++$n if (keys %{$$tree{'/nodes'}}) ;}
+      #if (ref $$tree{'/order'} eq 'ARRAY') { ++$n if @{$$tree{'/order'}} ;}
 
       if ($ks > $n) { $addroot = 1 ;}
       else {
@@ -79,7 +81,7 @@ sub data {
   my ($data,$unicode) ;
   {
     my $parsed = {} ;
-    &_data(\$data,$tree,'',-1, {} , $parsed , undef , $args{noident} , $args{nospace} , $args{lowtag} , $args{lowarg} , $args{wild} , $args{sortall} ) ;
+    &_data(\$data , $tree , '' , -1 , {} , $parsed , undef , undef , $args{noident} , $args{nospace} , $args{lowtag} , $args{lowarg} , $args{wild} , $args{sortall} ) ;
     $data .= "\n" if !$args{nospace} ;
     if ( &_is_unicode($data) ) { $unicode = 1 ;}
   }
@@ -187,7 +189,7 @@ sub _is_unicode {
 #########
 
 sub _data {
-  my ( $data , $tree , $tag , $level , $prev_tree , $parsed , $ar_i , @stat ) = @_ ;
+  my ( $data , $tree , $tag , $level , $prev_tree , $parsed , $ar_i , $node_type , @stat ) = @_ ;
 
   if (ref($tree) eq 'XML::Smart') { $tree = $$tree->{point} ;}
   
@@ -240,12 +242,12 @@ sub _data {
         elsif ( ref $k eq 'ARRAY' && $multi_keys{$Key} ) {
           $i = $array_i{$Key}++ if $#{$k} > 0 ;
         }
-        $args .= &_data(\$tags,$k,$Key, $level+1 , $tree , $parsed , $i , @stat) if $array_i{$Key} ne 'ok' ;
+        $args .= &_data(\$tags,$k,$Key, $level+1 , $tree , $parsed , $i , $$tree{'/nodes'}{$Key} , @stat) if $array_i{$Key} ne 'ok' ;
         $array_i{$Key} = 'ok' if $i eq '' && ref $k eq 'ARRAY' ;
       }
       elsif ( $$tree{'/nodes'}{$Key} ) {
         my $k = [$$tree{$Key}] ;
-        $args .= &_data(\$tags,$k,$Key, $level+1 , $tree , $parsed , undef , @stat) ;
+        $args .= &_data(\$tags,$k,$Key, $level+1 , $tree , $parsed , undef , $$tree{'/nodes'}{$Key} , @stat) ;
       }
       elsif ("\L$Key\E" eq 'content') {
         if ( tied($$tree{$Key}) && $$tree{$Key} =~ /\S/s ) {
@@ -293,12 +295,35 @@ sub _data {
       if ( $array_i{$Key} ne 'ok' && $#{ $$tree{$Key} } >= $array_i{$Key} ) {
         for my $i ( $array_i{$Key} .. $#{ $$tree{$Key} } ) {
           my $k = $$tree{$Key}[$i] ;
-          $args .= &_data(\$tags,$k,$Key, $level+1 , $tree , $parsed , undef , @stat) ;
+          $args .= &_data(\$tags,$k,$Key, $level+1 , $tree , $parsed , undef , undef , @stat) ;
         }
       }
     }
     
-    &_add_basic_entity($cont) if $cont ne '' ;
+    if ( $cont ne '' ) {
+      my $tp = _data_type($cont) ;
+      
+      if ( $node_type =~ /^(\w+),(\d+),(\d*)$/ ) {
+        my ( $node_tp , $node_set ) = ($1,$2) ;
+        if ( !$node_set ) {
+          if    ( $tp == 3 && $node_tp eq 'cdata'  ) { $tp = 0 ;}
+          elsif ( $tp == 4 && $node_tp eq 'binary' ) { $tp = 0 ;}
+        }
+        else {
+          if    ( $node_tp eq 'cdata'  ) { $tp = 2 ;}
+          elsif ( $node_tp eq 'binary' ) { $tp = 4 ;}
+        }
+      }
+      
+      if ( $tp == 3 ) { $cont = "<![CDATA[$cont]]>" ;}
+      elsif ( $tp == 4 ) {
+        require XML::Smart::Base64 ;
+        $cont = &XML::Smart::Base64::encode_base64($cont) ;
+        $cont =~ s/\s$//s ;
+        $args .= ' dt:dt="binary.base64"' ;
+      }
+      else { &_add_basic_entity($cont) ;}
+    }
     
     if ($args_end ne '') {
       $args .= $args_end ;
@@ -363,7 +388,7 @@ sub _data {
       elsif (ref($value)) {
         if (ref($value) eq 'HASH') {
           $c = 2 ;
-          &_data(\$tags,$value,$tag,$level, $tree , $parsed , undef , @stat) ;
+          &_data(\$tags,$value,$tag,$level, $tree , $parsed , undef , undef , @stat) ;
           $do_val = 0 ;
         }
         elsif (ref($value) eq 'SCALAR') { $value = $$value ;}
@@ -371,6 +396,19 @@ sub _data {
       }
       if ( $do_val && $value ne '') {
         my $tp = _data_type($value) ;
+        
+        if ( $node_type =~ /^(\w+),(\d+),(\d*)$/ ) {
+          my ( $node_tp , $node_set ) = ($1,$2) ;
+          if ( !$node_set ) {
+            if    ( $tp == 3 && $node_tp eq 'cdata'  ) { $tp = 0 ;}
+            elsif ( $tp == 4 && $node_tp eq 'binary' ) { $tp = 0 ;}
+          }
+          else {
+            if    ( $node_tp eq 'cdata'  ) { $tp = 2 ;}
+            elsif ( $node_tp eq 'binary' ) { $tp = 4 ;}
+          }
+        }
+        
         if ($tp <= 2) {
           $c++ ;
           my $cont = $value ; &_add_basic_entity($value) ;
@@ -426,12 +464,12 @@ sub _data {
 # _DATA_TYPE #
 ##############
 
-sub _data_type {
-  return 4 if ($_[0] =~ /[^\w\d\s!"#\$\%&'\(\)\*\+,\-\.\/:;<=>\?\@\[\\\]\^\`\{\|}~€‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ]/s) ;
-  return 3 if ($_[0] =~ /<.*?>/s) ;
-  return 2 if ($_[0] =~ /[\r\n\t]/s) ;
-  return 1 ;
-}
+## 4 binary
+## 3 CDATA
+## 2 content
+## 1 value
+
+sub _data_type { &XML::Smart::_data_type ;}
 
 ##############
 # _CHECK_TAG #
