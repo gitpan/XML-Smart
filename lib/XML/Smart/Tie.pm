@@ -12,6 +12,9 @@
 
 package XML::Smart::Tie ;
 
+use strict ;
+no warnings ;
+
 ######################
 # _GENERATE_NULLTREE #
 ######################
@@ -76,7 +79,10 @@ sub _generate_nulltree {
           else { $$tree{$tree_i} = {} ;}
         }
       }
-      else { $$tree{$tree_i} = {} ;}
+      else {
+        push( @{ $$treeprev{$keyprev}{'/order'} }  , $tree_i) if $treeprev ;
+        $$tree{$tree_i} = {} ;
+      }
       $keyprev = $tree_i ;
       $treeprev = $tree ;
       $tree = $$tree{$tree_i} ;
@@ -267,7 +273,7 @@ sub PUSH {
   #print "PUSH>> $key >> @{$this->{saver}->{keyprev}}\n" ;
 
   if ( $this->{saver}->{null} ) {
-    &XML::Smart::Tie::_generate_nulltree($this->{saver},$key,$i) ;
+    &XML::Smart::Tie::_generate_nulltree($this->{saver},$key) ;
   }
   
   &XML::Smart::Tie::_delete_XPATH($this->{saver}) ;
@@ -292,7 +298,7 @@ sub UNSHIFT {
   my $key = $this->{saver}->{key} ;
 
   if ( $this->{saver}->{null} ) {
-    &XML::Smart::Tie::_generate_nulltree($this->{saver},$key,$i) ;
+    &XML::Smart::Tie::_generate_nulltree($this->{saver},$key) ;
   }
   
   &XML::Smart::Tie::_delete_XPATH($this->{saver}) ;
@@ -320,7 +326,7 @@ sub SPLICE {
   my $key = $this->{saver}->{key} ;
   
   if ( $this->{saver}->{null} ) {
-    &XML::Smart::Tie::_generate_nulltree($this->{saver},$key,$i) ;
+    &XML::Smart::Tie::_generate_nulltree($this->{saver},$key) ;
   }
   
   &XML::Smart::Tie::_delete_XPATH($this->{saver}) ;
@@ -487,7 +493,7 @@ sub STORE {
   #print "H-STORE>> $key , $i >> @{$this->{saver}->{keyprev}} >> [$this->{saver}->{null}]\n" ;
   
   if ( $this->{saver}->{null} ) {
-    &XML::Smart::Tie::_generate_nulltree($this->{saver},$key,$i) ;
+    &XML::Smart::Tie::_generate_nulltree($this->{saver},$key) ;
   }
   
   &XML::Smart::Tie::_delete_XPATH($this->{saver}) ;
@@ -505,9 +511,11 @@ sub STORE {
     }
     
     if ( !exists $this->{saver}->{point}{$key} ) {
-      if (!$this->{saver}->{keyorder}) { $this->_keyorder ;}
-      push(@{$this->{saver}->{keyorder}} , $key) ;
-      push(@{$this->{saver}->{point}{'/order'}} , $key) ;
+      if ($key ne '/order' && $key ne '/nodes') {
+        if (!$this->{saver}->{keyorder}) { $this->_keyorder ;}
+        push(@{$this->{saver}->{keyorder}} , $key) ;
+        push(@{$this->{saver}->{point}{'/order'}} , $key) ;
+      }
     }
     return $this->{saver}->{point}{$key} = $_[0] ;
   }

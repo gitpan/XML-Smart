@@ -25,7 +25,7 @@ use XML::Smart::Data qw(data) ;
 use XML::Smart::XPath qw(xpath XPath xpath_pointer XPath_pointer) ;
 
 our ($VERSION) ;
-$VERSION = '1.4' ;
+$VERSION = '1.4.1' ;
 
 #######
 # NEW #
@@ -395,11 +395,13 @@ sub is_node {
 sub args {
   my $this = shift ;
   my @args ;
-  my $nodes = $this->back->{'/nodes'} ; 
+
+  my $nodes = $this->back->{'/nodes'} ;
+  my $pointer = $$this->{point} ;
   
   foreach my $Key ( keys %$this ) {
     if ( !$$nodes{$Key} ) {
-      if ( (!ref $$this{$Key}) || (ref($$this{$Key}) eq 'HASH') || (ref($$this{$Key}) eq 'ARRAY' && $#{$$this{$Key}} == 0) ) {
+      if ( (!ref $$pointer{$Key}) || (ref($$pointer{$Key}) eq 'HASH') || (ref($$pointer{$Key}) eq 'ARRAY' && $#{$$pointer{$Key}} == 0) ) {
         push(@args , $Key) ;
       }
     }
@@ -433,13 +435,14 @@ sub nodes {
   my $this = shift ;
 
   my $nodes = $this->{'/nodes'}->pointer ;
+  my $pointer = $$this->{point} ;
   
   my @nodes ;
   
   foreach my $Key ( keys %$this ) {
-    if ( $$nodes{$Key} || (ref($$this{$Key}) eq 'HASH') || (ref($$this{$Key}) eq 'ARRAY' && $#{$$this{$Key}} > 0)  ) {
-      if (ref($$this{$Key}) eq 'ARRAY') {
-        my $n = $#{$$this{$Key}} ;
+    if ( $$nodes{$Key} || (ref($$pointer{$Key}) eq 'HASH') || (ref($$pointer{$Key}) eq 'ARRAY' && $#{$$pointer{$Key}} > 0)  ) {
+      if (ref($$pointer{$Key}) eq 'ARRAY') {
+        my $n = $#{$$pointer{$Key}} ;
         for my $i (0..$n) {
           push(@nodes , $this->{$Key}[$i]) ;
         }
@@ -461,10 +464,12 @@ sub nodes_keys {
   my $this = shift ;
 
   my $nodes = $this->{'/nodes'}->pointer ;
+  my $pointer = $$this->{point} ;
+  
   my @nodes ;
   
   foreach my $Key ( keys %$this ) {
-    if ( $$nodes{$Key} || (ref($$this{$Key}) eq 'HASH') || (ref($$this{$Key}) eq 'ARRAY' && $#{$$this{$Key}} > 0)  ) {
+    if ( $$nodes{$Key} || (ref($$pointer{$Key}) eq 'HASH') || (ref($$pointer{$Key}) eq 'ARRAY' && $#{$$pointer{$Key}} > 0)  ) {
       push(@nodes , $Key) ;
     }
   }
@@ -482,7 +487,11 @@ sub set_node {
   if ( !@_ ) { $bool = 1 ;}
   
   my $key = $this->key ;
-  my $nodes = $this->{'/nodes'}->pointer ;
+  
+  my $back = $this->back ;
+  
+  $back->{'/nodes'} = {} if $back->{'/nodes'}->null ;
+  my $nodes = $back->{'/nodes'}->pointer ;
   
   if ( $bool ) {
     $$nodes{$key} = 1 ;
@@ -548,6 +557,8 @@ sub ret {
     elsif ($type =~ /\%$/) { @ret = %{$back->{$key}[$i]} ;}
   }
   else {
+    if ( $this->null ) { return ;}
+    
     if    ($type =~ /\$$/) { @ret = $this->content ;}
     elsif ($type =~ /\@$/) { @ret = @{$this} ;}
     elsif ($type =~ /\%$/) { @ret = %{$this} ;}
@@ -885,7 +896,7 @@ I<XML::Smart::HTMLParser> can be used to load/parse wild/bad XML data, or HTML t
 
 =head1 METHODS
 
-=head2 new (FILE|DATA|URL , PARSER)
+=head2 new (FILE|DATA|URL , PARSER , OPTIONS)
 
 Create a XML object.
 
@@ -930,16 +941,49 @@ If not set it will look for XML::Parser and load it.
 If XML::Parser can't be loaded it will use XML::Smart::Parser, that actually is a
 clone of XML::Parser::Lite with some fixes.
 
+=item OPTIONS
+
+You can force the uper case and lower case for tags (nodes) and arguments (attributes).
+
+=over 10
+
+=item lowtag
+
+Make the tags lower case.
+
+=item lowarg
+
+Make the arguments lower case.
+
+=item upertag
+
+Make the tags uper case.
+
+=item uperarg
+
+Make the arguments uper case.
+
 =back
 
-=head2 copy()
+I<** This options are applied when the XML data is loaded. For XML generation see data() OPTIONS.>
 
-Return a copy of the XML::Smart object (pointing to the base).
+=back
 
-** This is good when you want to keep 2 versions of the same XML tree in the memory,
-since one object can't change the tree of the other!
+=head2  args()
 
-=head2 base()
+Return the arguments names (not nodes).
+
+=head2  args_values()
+
+Return the arguments values (not nodes).
+
+=head2  back()
+
+Get back one level the pointer in the tree.
+
+** Se I<base()>.
+
+=head2  base()
 
 Get back to the base of the tree.
 
@@ -952,57 +996,7 @@ again (an object that points to the base):
   my $XML2 = $srv->base() ;
   $XML2->{root}{hosts}...
 
-=head2 back()
-
-Get back one level the pointer in the tree.
-
-** Se I<base()>.
-
-=head2 cut_root()
-
-Cut the root key:
-
-  my $srv = $XML->{rootx}{host}{server} ;
-  
-  ## Or if you don't know the root name:
-  $XML = $XML->cut_root() ;
-  my $srv = $XML->{host}{server} ;
-
-** Note that this will cut the root of the pointer in the tree.
-So, if you are in some place that have more than one key (multiple roots), the
-same object will be retuned without cut anything.
-
-=head2 key()
-
-Return the key of the value.
-
-If wantarray return the index too: return(KEY , I) ;
-
-=head2 i()
-
-Return the index of the value.
-
-** If the value is from an hash key (not an ARRAY ref) undef is returned.
-
-=head2 set_node(BOOL)
-
-Set/unset the current key as a node (tag).
-
-** If BOOL is not defined will use I<true>.
-
-=head2 set_tag
-
-Same as set_node.
-
-=head2 set_order(KEYS)
-
-Set the order of the keys (nodes and attributes) in this point.
-
-=head2 null()
-
-Return I<true> if the XML object has a null tree or if the pointer is in some place that doesn't exist.
-
-=head2 content()
+=head2  content()
 
 Return the content of a node:
 
@@ -1017,68 +1011,26 @@ Return the content of a node:
   ## or just:
   my $content = $XML->{foo} ;
 
-=head2 args()
+=head2  copy()
 
-Return the arguments names (not nodes).
+Return a copy of the XML::Smart object (pointing to the base).
 
-=head2 args_values()
+** This is good when you want to keep 2 versions of the same XML tree in the memory,
+since one object can't change the tree of the other!
 
-Return the arguments values (not nodes).
+=head2  cut_root()
 
-=head2 nodes()
+Cut the root key:
 
-Return the nodes (objects) in the pointer (keys that aren't arguments).
-
-=head2 nodes_keys()
-
-Return the nodes names (not the object) in the pointer (keys that aren't arguments).
-
-=head2 path()
-
-Return the path of the pointer.
-
-I<Example>:
-
-  /hosts/server[1]/address[0]
-
-B<Note that the index is 0 based and 'address' can be an attribute or a node, what is not compatible with XPath.>
-
-B<** See I<path_as_xpath()>.>
-
-=head2 path_as_xpath()
-
-Return the path of the pointer in the XPath format.
-
-=head2 xpath() || XPath()
-
-Return a XML::XPath object, based in the XML root in the tree.
-
-  ## look from the root:
-  my $data = $XML->XPath->findnodes_as_string('/') ;
-
-I<** Need XML::XPath installed, but only load when is needed.>
-
-=head2 xpath_pointer() || XPath_pointer() 
-
-Return a XML::XPath object, based in the XML::Smart pointer in the tree.
-
-  ## look from this point, soo XPath '/' actually starts at /server/:
+  my $srv = $XML->{rootx}{host}{server} ;
   
-  my $srvs = $XML->{server} ;
-  my $data = $srvs->XPath_pointer->findnodes_as_string('/') ;
+  ## Or if you don't know the root name:
+  $XML = $XML->cut_root() ;
+  my $srv = $XML->{host}{server} ;
 
-I<** Need XML::XPath installed, but only load when is needed.>
-
-=head2 tree()
-
-Return the HASH tree of the XML data.
-
-** Note that the real HASH tree is returned here. All the other ways return an
-object that works like a HASH/ARRAY through tie.
-
-=head2 pointer
-
-Return the HASH tree from the pointer.
+** Note that this will cut the root of the pointer in the tree.
+So, if you are in some place that have more than one key (multiple roots), the
+same object will be retuned without cut anything.
 
 =head2 data (OPTIONS)
 
@@ -1186,11 +1138,102 @@ Make the tree from current point in the XML tree (not from the base as data()).
 
 Accept the same OPTIONS of the method B<I<data()>>.
 
+
+=head2  i()
+
+Return the index of the value.
+
+** If the value is from an hash key (not an ARRAY ref) undef is returned.
+
+=head2  is_node()
+
+Return if a key is a node.
+
+=head2  key()
+
+Return the key of the value.
+
+If wantarray return the index too: return(KEY , I) ;
+
+=head2  nodes()
+
+Return the nodes (objects) in the pointer (keys that aren't arguments).
+
+=head2  nodes_keys()
+
+Return the nodes names (not the object) in the pointer (keys that aren't arguments).
+
+=head2  null()
+
+Return I<true> if the XML object has a null tree or if the pointer is in some place that doesn't exist.
+
+=head2  path()
+
+Return the path of the pointer.
+
+I<Example>:
+
+  /hosts/server[1]/address[0]
+
+B<Note that the index is 0 based and 'address' can be an attribute or a node, what is not compatible with XPath.>
+
+B<** See I<path_as_xpath()>.>
+
+=head2  path_as_xpath()
+
+Return the path of the pointer in the XPath format.
+
+=head2  pointer
+
+Return the HASH tree from the pointer.
+
 =head2 save (FILEPATH , OPTIONS)
 
 Save the XML data inside a file.
 
 Accept the same OPTIONS of the method B<I<data()>>.
+
+=head2  set_node(BOOL)
+
+Set/unset the current key as a node (tag).
+
+** If BOOL is not defined will use I<true>.
+
+=head2  set_order(KEYS)
+
+Set the order of the keys (nodes and attributes) in this point.
+
+=head2  set_tag
+
+Same as set_node.
+
+=head2  tree()
+
+Return the HASH tree of the XML data.
+
+** Note that the real HASH tree is returned here. All the other ways return an
+object that works like a HASH/ARRAY through tie.
+
+=head2  xpath() || XPath()
+
+Return a XML::XPath object, based in the XML root in the tree.
+
+  ## look from the root:
+  my $data = $XML->XPath->findnodes_as_string('/') ;
+
+I<** Need XML::XPath installed, but only load when is needed.>
+
+=head2  xpath_pointer() || XPath_pointer() 
+
+Return a XML::XPath object, based in the XML::Smart pointer in the tree.
+
+  ## look from this point, soo XPath '/' actually starts at /server/:
+  
+  my $srvs = $XML->{server} ;
+  my $data = $srvs->XPath_pointer->findnodes_as_string('/') ;
+
+I<** Need XML::XPath installed, but only load when is needed.>
+
 
 =head1 ACCESS
 

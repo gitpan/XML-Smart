@@ -77,7 +77,8 @@ sub parse {
       my $more ;
       ($more) = ( $data =~ /\G(.*?)>/s ) ;
       pos($data) += length($more) + 1 ;
-      ($more_q , @args) = &parse_tag($markup.'>'.$more) ;
+      $markup = $markup.'>'.$more ;
+      ($more_q , @args) = &parse_tag($markup) ;
     }
     
     if ($cont =~ /\S/s) { push(@parsed , 'Char' , $cont) ;}
@@ -91,13 +92,15 @@ sub parse {
   }
   
   {
-    my (@open,%close) ;
+  
+    my (%close,@close,%open) ;
     for(my $i=$#parsed-1 ; $i >= 0 ; $i-=2) {
       my $type = $parsed[$i] ;
       
       if ($type eq 'End') {
         my $tag = $parsed[$i+1] ;
         $close{lc($tag)}++ ;
+        push(@close , $i) ;
       }
       elsif ($type eq 'Start') {
         my $tag = @{$parsed[$i+1]}[0] ;
@@ -108,17 +111,26 @@ sub parse {
             $parsed[$i] = 'StartEnd' ;
           }
           elsif ($parsed[$i+2] ne 'Char') { $parsed[$i] = 'StartEnd' ;}
-          else { push(@open , $tag) ;}
+          else {
+            push( @{ $open{@close[-1]} }  , 'End' , $tag) ;
+          }
         }
         else {
           $close{lc($tag)}-- ;
+          pop(@close) ;
         }
       }
     }
     
-    foreach my $open_i ( @open ) {
-      push(@parsed , 'End' , $open_i ) ;
+    if ( %open ) {
+      my @parsed2 ;
+      for(my $i=0 ; $i <= $#parsed ; ++$i) {
+        push(@parsed2 , @{$open{$i}}) if $open{$i} ;
+        push(@parsed2 , $parsed[$i]) ;
+      }
+      @parsed = @parsed2 ;
     }
+
   }
 
   &{$this->{Init}}($this) ;

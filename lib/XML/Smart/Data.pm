@@ -21,6 +21,9 @@ require Exporter ;
 our @EXPORT = qw(data) ;
 our @EXPORT_OK = @EXPORT ;
 
+use strict ;
+no warnings ;
+
 ########
 # DATA #
 ########
@@ -74,7 +77,7 @@ sub data {
   my ($data,$unicode) ;
   {
     my $parsed = {} ;
-    &_data(\$data,$tree,'',-1, $parsed , $args{noident} , $args{nospace} , $args{lowtag} , $args{lowarg} , $args{wild} , $args{sortall} ) ;
+    &_data(\$data,$tree,'',-1, {} , $parsed , $args{noident} , $args{nospace} , $args{lowtag} , $args{lowarg} , $args{wild} , $args{sortall} ) ;
     $data .= "\n" if !$args{nospace} ;
     if ( &_is_unicode($data) ) { $unicode = 1 ;}
   }
@@ -182,7 +185,7 @@ sub _is_unicode {
 #########
 
 sub _data {
-  my ( $data , $tree , $tag , $level , $parsed , @stat ) = @_ ;
+  my ( $data , $tree , $tag , $level , $prev_tree , $parsed , @stat ) = @_ ;
 
   if (ref($tree) eq 'XML::Smart') { $tree = $$tree->{point} ;}
   
@@ -224,7 +227,11 @@ sub _data {
       if (ref($$tree{$Key})) {
         my $k = $$tree{$Key} ;
         if (ref $k eq 'XML::Smart') { $k = ${$$tree{$Key}}->{point} ;}
-        $args .= &_data(\$tags,$k,$Key, $level+1 , $parsed , @stat) ;
+        $args .= &_data(\$tags,$k,$Key, $level+1 , $tree , $parsed , @stat) ;
+      }
+      elsif ( $$tree{'/nodes'}{$Key} ) {
+        my $k = [$$tree{$Key}] ;
+        $args .= &_data(\$tags,$k,$Key, $level+1 , $tree , $parsed , @stat) ;
       }
       elsif ("\L$Key\E" eq 'content') { $cont .= $$tree{$Key} ;}
       elsif ( $Key eq '!--' && (!ref($$tree{$Key}) || ( ref($$tree{$Key}) eq 'HASH' && keys %{$$tree{$Key}} == 1 && (defined $$tree{$Key}{CONTENT} || defined $$tree{$Key}{content}) ) ) ) {
@@ -301,6 +308,7 @@ sub _data {
   }
   elsif (ref($tree) eq 'ARRAY') {
     my ($c,$v,$tags) ;
+    
     foreach my $value_i (@$tree) {
       my $value = $value_i ;
       if (ref $value_i eq 'XML::Smart') { $value = $$value_i->{point} ;}
@@ -317,7 +325,7 @@ sub _data {
       elsif (ref($value)) {
         if (ref($value) eq 'HASH') {
           $c = 2 ;
-          &_data(\$tags,$value,$tag,$level, $parsed , @stat) ;
+          &_data(\$tags,$value,$tag,$level, $tree , $parsed , @stat) ;
           $do_val = 0 ;
         }
         elsif (ref($value) eq 'SCALAR') { $value = $$value ;}
@@ -347,7 +355,8 @@ sub _data {
         }
       }
     }
-    if ($c <= 1) {
+
+    if ($c <= 1  && ! $$prev_tree{'/nodes'}{$tag}) {
       my $k = $stat[4] ? $tag : &_check_key($tag) ;
       if    ($stat[3] == 1) { $k = "\L$k\E" ;}
       elsif ($stat[3] == 2) { $k = "\U$k\E" ;}

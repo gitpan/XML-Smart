@@ -23,6 +23,9 @@ our @EXPORT_OK = @EXPORT ;
 
 my $load_XPath ;
 
+use strict ;
+no warnings ;
+
 ##############
 # LOAD_XPATH #
 ##############

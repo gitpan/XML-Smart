@@ -1,5 +1,15 @@
 Revision history for Perl extension XML::Smart.
 
+1.4.1 25/10/2003
+    - Fixed set_node(). Not full implemented on previous version! sorry.
+    - Fixed openned tags for XML::Smart::HTMLParser. Now closing near the open tag.
+    - Fixed external access of /nodes and /order, avoiding internal handling of
+      them as normal keys.
+    - Fixed bug at nodes(), nodes_keys(), args(), to identify HASH/ARRAY ref().
+    - Fixed bug at XML::Smart::HTMLParser, when an attribute value has 2 '>' inside.
+    - Fixed prerequisite at test.pl.
+    - Fixed warnings.
+
 1.4 10/10/2003
     - Fixed bug for {arg}{CONTENT}, when {arg} not defined yet.
     - An argument now can be forced/unforced to be a node (tag) when XML data is generated.

@@ -3,7 +3,7 @@
 ###use Data::Dumper ; print Dumper( $XML->tree ) ;
 
 use Test;
-BEGIN { plan tests => 80 } ;
+BEGIN { plan tests => 84 } ;
 use XML::Smart ;
 
 no warnings ;
@@ -67,7 +67,7 @@ my $DATA = q`<?xml version="1.0" encoding="iso-8859-1"?>
   ` , 'HTML') ;
   
   my $data = $XML->data(noheader => 1 , nospace => 1 ) ;
-  ok($data,q`<html title="TITLE"><body bgcolor="#000000"><foo1 baz='y1=name\" bar1=x1 &gt; end' w="q"/><foo2 bar2="" arg0="" x="y">FOO2-DATA</foo2><foo3 bar3="x3"/><foo4 url="http://www.com/dir/file.x?query=value&amp;x=y"/></body></html>`) ;
+  ok($data,q`<html><title>TITLE</title><body bgcolor="#000000"><foo1 baz='y1=name\" bar1=x1 &gt; end' w="q"/><foo2 bar2="" arg0="" x="y">FOO2-DATA</foo2><foo3 bar3="x3"/><foo4 url="http://www.com/dir/file.x?query=value&amp;x=y"/></body></html>`) ;
 
   my $XML = XML::Smart->new(q`
   <html><title>TITLE</title>
@@ -85,7 +85,7 @@ my $DATA = q`<?xml version="1.0" encoding="iso-8859-1"?>
   my $data = $XML->data(noheader => 1 , nospace => 1) ;
   $data =~ s/\s//gs ;
   
-  ok($data,q`<htmltitle="TITLE"><bodybgcolor="#000000"><foo1bar1="x1"/><SCRIPTLANGUAGE="JavaScript"><_-->functionstopError(){returntrue;}window.onerror=stopError;document.writeln("some&lt;tag&gt;wirtten!");</_--></SCRIPT><foo2bar2="x2"/></body></html>`);
+  ok($data,q`<html><title>TITLE</title><bodybgcolor="#000000"><foo1bar1="x1"/><SCRIPTLANGUAGE="JavaScript"><_-->functionstopError(){returntrue;}window.onerror=stopError;document.writeln("some&lt;tag&gt;wirtten!");</_--></SCRIPT><foo2bar2="x2"/></body></html>`);
 
 }
 #########################
@@ -545,8 +545,6 @@ my $DATA = q`<?xml version="1.0" encoding="iso-8859-1"?>
 }
 #########################
 {
-
-  use XML::Smart ;
   
   my $XML = XML::Smart->new() ;
   
@@ -565,8 +563,24 @@ my $DATA = q`<?xml version="1.0" encoding="iso-8859-1"?>
 }
 #########################
 {
+  
+  my $XML = XML::Smart->new() ;
+  
+  $XML->{menu}{arg1} = [1,2,3] ;
+  $XML->{menu}{arg2} = 4 ;
+  
+  my @arg1 = $XML->{menu}{arg1}('@') ;
+  ok($#arg1 , 2) ;
+  
+  my @arg2 = $XML->{menu}{arg2}('@') ;
+  ok($#arg2 , 0) ;
+  
+  my @arg3 = $XML->{menu}{arg3}('@') ;  
+  ok($#arg3 , -1) ;  
 
-  use XML::Smart ;
+}
+#########################
+{
   
   my $XML = XML::Smart->new() ;
   
@@ -633,28 +647,49 @@ my $DATA = q`<?xml version="1.0" encoding="iso-8859-1"?>
 }
 #########################
 {
+  
+  my $html = q`
+  <html>
+  <p id="$s->{supply}->shift">foo</p>
+   </html>
+  `;
+  
+  my @tag ;
 
-  use XML::Smart ;
-  
-  my $XML = XML::Smart->new($DATA , 'XML::Smart::Parser') ;
-  
-  my $xp1 = $XML->XPath ;
-  my $xp2 = $XML->XPath ;
-  ok($xp1,$xp2) ;
-  
-  my $xp1 = $XML->XPath ;
-  $XML->{hosts}{tmp} = 123 ;
-  my $xp2 = $XML->XPath ;
-  
- ## Test cache of the XPath object:
-  ok(1) if $xp1 != $xp2 ;
+  my $p = XML::Smart::HTMLParser->new(
+  Start => sub { shift; push(@tag , @_) ;},
+  Char => sub {},
+  End => sub {},
+  );
 
-  delete $XML->{hosts}{tmp} ;
+  $p->parse($html) ;
 
-  my $data = $XML->XPath->findnodes_as_string('/') ;
+  ok(@tag[-1] , '$s->{supply}->shift') ;  
+
+}
+#########################
+{
+  eval(q`use XML::XPath`) ;
+  if ( !$@ ) {
+    my $XML = XML::Smart->new($DATA , 'XML::Smart::Parser') ;
+    
+    my $xp1 = $XML->XPath ;
+    my $xp2 = $XML->XPath ;
+    ok($xp1,$xp2) ;
+    
+    my $xp1 = $XML->XPath ;
+    $XML->{hosts}{tmp} = 123 ;
+    my $xp2 = $XML->XPath ;
+    
+   ## Test cache of the XPath object:
+    ok(1) if $xp1 != $xp2 ;
   
-  ok($data , q`<hosts><server os="linux" type="redhat" version="8.0"><address>192.168.0.1</address><address>192.168.0.2</address></server><server os="linux" type="suse" version="7.0"><address>192.168.1.10</address><address>192.168.1.20</address></server><server address="192.168.2.100" os="linux" type="conectiva" version="9.0" /><server address="192.168.3.30" os="bsd" type="freebsd" version="9.0" /></hosts>`) ;
-
+    delete $XML->{hosts}{tmp} ;
+  
+    my $data = $XML->XPath->findnodes_as_string('/') ;
+    
+    ok($data , q`<hosts><server os="linux" type="redhat" version="8.0"><address>192.168.0.1</address><address>192.168.0.2</address></server><server os="linux" type="suse" version="7.0"><address>192.168.1.10</address><address>192.168.1.20</address></server><server address="192.168.2.100" os="linux" type="conectiva" version="9.0" /><server address="192.168.3.30" os="bsd" type="freebsd" version="9.0" /></hosts>`) ;
+  }
 }
 #########################
 {
