@@ -1,6 +1,10 @@
 Revision history for Perl extension XML::Smart.
 
-1.5.8 2004-?-?
+1.5.9 2004-4-12
+    - Fixed minor bug with null trees and arrays.
+
+
+1.5.8 2004-4-11
     - Added methods tree_ok(), tree_pointer_ok(), pointer_ok(), dump_tree(),
       dump_tree_pointer(), dump_pointer().
     - Fixed position of CONTENT for single content with tags when creating the XML data().

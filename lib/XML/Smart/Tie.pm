@@ -37,20 +37,21 @@ sub _generate_nulltree {
   
   my $tree = $saver->{tree} ;
   
-  my ($keyprev , $treeprev , $array , $key , $i) ;
+  my ($keyprev , $iprev , $treeprev , $array , $key , $i) ;
   
   ##print "GEN>> @tree\n" ;
 
   foreach my $tree_i ( @tree ) {
-    ##print "*> $tree_i\n" ;
-    ##print Dumper( $tree , $treeprev , $array ) if $tree_i eq 'more' ;
+    ##print "*> $tree_i >> $keyprev # $iprev \n" ;
+    ##use Data::Dumper ;
+    ##print Dumper( [$tree , $treeprev , $array] ) ;
     
     if (ref($tree) ne 'HASH' && ref($tree) ne 'ARRAY') {
       my $cont = $$treeprev{$keyprev} ;
       $$treeprev{$keyprev} = {} ;
       $$treeprev{$keyprev}{CONTENT} = $cont ;
     }
-      
+
     if ($tree_i =~ /^\[(\d+)\]$/) {
       $i = $1 ;
       if (exists $$treeprev{$keyprev}) {
@@ -67,6 +68,7 @@ sub _generate_nulltree {
       $tree = $$treeprev{$keyprev}[$i] ;
       $array = $$treeprev{$keyprev} ;
       $treeprev = $prev ;
+      $iprev = $i ;
     }
     elsif (ref $tree eq 'ARRAY') {
       if (!exists $$tree[0] ) { $$tree[0] = {} ;}
@@ -89,10 +91,18 @@ sub _generate_nulltree {
         }
       }
       else {
-        push( @{ $$treeprev{$keyprev}{'/order'} }  , $tree_i) if $treeprev ;
+        if ( $treeprev ) {
+          if ( ref($treeprev) eq 'ARRAY' ) {
+            push( @{ $$treeprev[$iprev]{$keyprev}{'/order'} }  , $tree_i) ;
+          }
+          else {
+            push( @{ $$treeprev{$keyprev}{'/order'} }  , $tree_i) ;
+          }
+        }
         $$tree{$tree_i} = {} ;
       }
       $keyprev = $tree_i ;
+      $iprev = undef ;
       $treeprev = $tree ;
       $tree = $$tree{$tree_i} ;
       $array = undef ;
