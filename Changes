@@ -1,6 +1,10 @@
 Revision history for Perl extension XML::Smart.
 
 
+1.6.3 2004-5-29
+    - Fixed minor bug on internal function _is_unicode().
+    
+
 1.6.2 2004-5-28
     - Fixed minor bug on XML::Smart::DTD.
 

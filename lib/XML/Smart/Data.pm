@@ -180,7 +180,7 @@ sub is_valid_tree {
 sub _is_unicode {
   if ($] >= 5.8) {
     eval(q`
-      if ( $data =~ /[\x{100}-\x{10FFFF}]/s) { return 1 ;}}
+      if ( $_[0] =~ /[\x{100}-\x{10FFFF}]/s) { return 1 ;}}
     `);
   }
   else {

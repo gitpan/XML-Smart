@@ -23,7 +23,7 @@ use XML::Smart::Tie ;
 use XML::Smart::Tree ;
 
 our ($VERSION) ;
-$VERSION = '1.6.2' ;
+$VERSION = '1.6.3' ;
 
 ###############
 # AUTOLOADERS #
