@@ -12,6 +12,8 @@
 
 package XML::Smart::Tree ;
 
+use XML::Smart::Data ;
+
 no warnings ;
 
 our ($VERSION) ;
@@ -220,6 +222,10 @@ sub _Start { #print "START>> @_[1]\n" ;
   if    ( $this->{SMART}{tag} == 1 ) { $tag = lc($tag) ;}
   elsif ( $this->{SMART}{tag} == 2 ) { $tag = uc($tag) ;}
   
+  $this->{PARSING}{p}{'/nodes'}{$tag} = 1 ;
+  
+  push( @{$this->{PARSING}{p}{'/order'}} , $tag) ;
+  
   if ( $this->{SMART}{arg} ) {
     my $type = $this->{SMART}{arg} ;
     my %argsok ;
@@ -240,14 +246,24 @@ sub _Start { #print "START>> @_[1]\n" ;
     
     %args = %argsok ;
   }
+  
+  ## Args order:
+  {
+    my $type = $this->{SMART}{arg} ;
+    for(my $i = 1 ; $i < $#_ ; $i+=2) {
+      my $arg ;
+      if    ($type == 1) { $k = lc($_[$i]) ;}
+      elsif ($type == 2) { $k = uc($_[$i]) ;}
+      else { $arg = $_[$i] ;}
+      push( @{$args{'/order'}} , $arg) ;
+    }
+  }
 
   $args{'/tag'} = $tag ;
   $args{'/back'} = $this->{PARSING}{p} ;
-
-  push( @{$this->{PARSING}{p}{'/keys'}} , $tag) ;
   
   if ($this->{NOENTITY}) {
-    foreach my $Key ( keys %args ) { &XML::Smart::_parse_basic_entity( $args{$Key} ) ;}
+    foreach my $Key ( keys %args ) { &XML::Smart::Data::_parse_basic_entity( $args{$Key} ) ;}
   }
   
   if ( defined $this->{PARSING}{p}{$tag} ) {
@@ -286,8 +302,18 @@ sub _Char {
     require XML::Smart::Base64 ;
     $content = &XML::Smart::Base64::decode_base64($content) ;
     delete $this->{PARSING}{p}{'dt:dt'} ;
+    delete $this->{PARSING}{p}{'/nodes'}{'dt:dt'} ;
+
+    my $nkeys = keys %{$this->{PARSING}{p}{'/nodes'}} ;
+    if ($nkeys < 1) { delete $this->{PARSING}{p}{'/nodes'} ;}
+    
+    my @order = @{$this->{PARSING}{p}{'/order'}} ;
+    my @order_ok ;
+    foreach my $order_i ( @order ) { push(@order_ok , $order_i) if $order_i ne 'dt:dt' ;}
+    if (@order_ok) { $this->{PARSING}{p}{'/order'} = \@order_ok ;}
+    else { delete $this->{PARSING}{p}{'/order'} ;}
   }
-  elsif ($this->{NOENTITY}) { &XML::Smart::_parse_basic_entity($content) ;}
+  elsif ($this->{NOENTITY}) { &XML::Smart::Data::_parse_basic_entity($content) ;}
   
   $this->{PARSING}{p}{CONTENT} .= $content ;
   push(@{$this->{content_ref}} , $this->{PARSING}{p} ) ;
@@ -330,7 +356,14 @@ sub _Final {
   my $tree = $this->{PARSING}{tree} ;
   
   foreach my $hash ( @{$this->{content_ref}} ) {
-    if ( $$hash{CONTENT} !~ /\S/s ) { delete $$hash{CONTENT} ;}
+    if ( $$hash{CONTENT} !~ /\S/s ) {
+      delete $$hash{CONTENT} ;
+      
+      my @order = @{$$hash{'/order'}} ;
+      my @order_ok ;
+      foreach my $order_i ( @order ) { push(@order_ok , $order_i) if $order_i ne 'CONTENT' ;}
+      $$hash{'/order'} = \@order_ok ;
+    }
   }
   
   delete($this->{PARSING}) ;

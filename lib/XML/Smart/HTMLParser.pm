@@ -224,67 +224,6 @@ sub parse_tag {
 # END #
 #######
 
-package main ;
-
-if (0) {
-  my $parser = XML::Smart::HTMLParser->new();
-  
-  $parser->parse('<root><foo bar="x"/></root>') ; exit ;
-  
-  $parser->parse(q`
-  <foo1 baz="y1=name\" bar1=x1 > end" w=q>
-  data1
-  <foo2 bar2="" arg0 x=y>
-  data2
-  </foo2>
-  <foo3 bar3=x3>
-  `);
-}
 1;
 
-__END__
-
-=head1 NAME
-
-MOD - title
-
-=head1 DESCRIPTION
-
-Desc
-
-=head1 USAGE
-
-  use MOD ;
-
-  ...
-
-
-=head1 METHODS
-
-=over 10
-
-=item Safe
-
-=back
-
-=head2 methodx
-
-=head2 methody
-
-=head1 SEE ALSO
-
-L<MOD>, L<MOD::SUB>,
-
-=head1 AUTHOR
-
-Graciliano M. P. <gm@virtuasites.com.br>
-
-I will appreciate any type of feedback (include your opinions and/or suggestions). ;-P
-
-=head1 COPYRIGHT
-
-This program is free software; you can redistribute it and/or
-modify it under the same terms as Perl itself.
-
-=cut
 

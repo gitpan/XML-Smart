@@ -1,5 +1,16 @@
 Revision history for Perl extension XML::Smart.
 
+1.4 10/10/2003
+    - Fixed bug for {arg}{CONTENT}, when {arg} not defined yet.
+    - An argument now can be forced/unforced to be a node (tag) when XML data is generated.
+    - Generation of XML data now keep the elements order, based in the previous document loaded or in the elements creation.
+    - Added multiple searches at the same time to find().
+    - Fixed delete {arg}[0].
+    - Fixed pointer() when pointing to a content.
+    - Fixed some others minor bugs.
+    - New methods: nodes(), nodes_keys(), args(), args_values(), set_node(), set_order(), path(), path_as_xpath(), xpath(), xpath_pointer().
+
+
 1.3.1 18/06/2003
     - Just a bug fix in XML::Smart::Parser for CDATA.
 

@@ -3,7 +3,7 @@
 ###use Data::Dumper ; print Dumper( $XML->tree ) ;
 
 use Test;
-BEGIN { plan tests => 56 } ;
+BEGIN { plan tests => 80 } ;
 use XML::Smart ;
 
 no warnings ;
@@ -19,6 +19,7 @@ my $DATA = q`<?xml version="1.0" encoding="iso-8859-1"?>
       <address>192.168.1.20</address>
     </server>
     <server address="192.168.2.100" os="linux" type="conectiva" version="9.0"/>
+    <server address="192.168.3.30" os="bsd" type="freebsd" version="9.0"/>
 </hosts>
 `;
 
@@ -66,7 +67,7 @@ my $DATA = q`<?xml version="1.0" encoding="iso-8859-1"?>
   ` , 'HTML') ;
   
   my $data = $XML->data(noheader => 1 , nospace => 1 ) ;
-  ok($data,q`<html title="TITLE"><body bgcolor="#000000"><foo1 baz='y1=name\" bar1=x1 &gt; end' w="q"/><foo2 arg0="" bar2="" x="y">FOO2-DATA</foo2><foo3 bar3="x3"/><foo4 url="http://www.com/dir/file.x?query=value&amp;x=y"/></body></html>`) ;
+  ok($data,q`<html title="TITLE"><body bgcolor="#000000"><foo1 baz='y1=name\" bar1=x1 &gt; end' w="q"/><foo2 bar2="" arg0="" x="y">FOO2-DATA</foo2><foo3 bar3="x3"/><foo4 url="http://www.com/dir/file.x?query=value&amp;x=y"/></body></html>`) ;
 
   my $XML = XML::Smart->new(q`
   <html><title>TITLE</title>
@@ -81,10 +82,10 @@ my $DATA = q`<?xml version="1.0" encoding="iso-8859-1"?>
   </body></html>
   ` , 'HTML') ;
   
-  my $data = $XML->data(noheader => 1 , nospace => 1 ) ;
+  my $data = $XML->data(noheader => 1 , nospace => 1) ;
   $data =~ s/\s//gs ;
   
-  ok($data,q`<htmltitle="TITLE"><bodybgcolor="#000000"><SCRIPTLANGUAGE="JavaScript">&lt;!--functionstopError(){returntrue;}window.onerror=stopError;document.writeln("some&lt;tag&gt;wirtten!");--&gt;</SCRIPT><foo1bar1="x1"/><foo2bar2="x2"/></body></html>`);
+  ok($data,q`<htmltitle="TITLE"><bodybgcolor="#000000"><foo1bar1="x1"/><SCRIPTLANGUAGE="JavaScript"><_-->functionstopError(){returntrue;}window.onerror=stopError;document.writeln("some&lt;tag&gt;wirtten!");</_--></SCRIPT><foo2bar2="x2"/></body></html>`);
 
 }
 #########################
@@ -281,8 +282,7 @@ my $DATA = q`<?xml version="1.0" encoding="iso-8859-1"?>
   
   $data =~ s/\s//gs ;
   
-  my $dataok = q`<HOSTS><SERVEROS="linux"TYPE="redhat"VERSION="8.0"><ADDRESS>192.168.0.1</ADDRESS><ADDRESS>192.168.0.2</ADDRESS></SERVER><SERVEROS="linux"TYPE="suse"VERSION="7.0"><ADDRESS>192.168.1.10</ADDRESS><ADDRESS>192.168.1.20</ADDRESS></SERVER><SERVERADDRESS="192.168.2.100"OS="linux"TYPE="conectiva"VERSION="9.0"/></HOSTS>`;
-
+  my $dataok = q`<HOSTS><SERVEROS="linux"TYPE="redhat"VERSION="8.0"><ADDRESS>192.168.0.1</ADDRESS><ADDRESS>192.168.0.2</ADDRESS></SERVER><SERVEROS="linux"TYPE="suse"VERSION="7.0"><ADDRESS>192.168.1.10</ADDRESS><ADDRESS>192.168.1.20</ADDRESS></SERVER><SERVERADDRESS="192.168.2.100"OS="linux"TYPE="conectiva"VERSION="9.0"/><SERVERADDRESS="192.168.3.30"OS="bsd"TYPE="freebsd"VERSION="9.0"/></HOSTS>`;
   ok($data,$dataok) ;
 }
 #########################
@@ -409,10 +409,27 @@ my $DATA = q`<?xml version="1.0" encoding="iso-8859-1"?>
   my $XML = XML::Smart->new($DATA , 'XML::Smart::Parser') ;
 
   my @types = $XML->{hosts}{server}('[@]','type') ;
-  ok("@types" , 'redhat suse conectiva') ;
+  ok("@types" , 'redhat suse conectiva freebsd') ;
 
   my @types = $XML->{hosts}{server}{type}('<@') ;
+  ok("@types" , 'redhat suse conectiva freebsd') ;
+  
+}
+#########################
+{
+
+  my $XML = XML::Smart->new($DATA , 'XML::Smart::Parser') ;
+
+  my @srvs = $XML->{hosts}{server}('os','eq','linux') ;
+  
+  my @types ;
+  foreach my $srvs_i ( @srvs ) { push(@types , $srvs_i->{type}) ;}
   ok("@types" , 'redhat suse conectiva') ;
+
+  my @srvs = $XML->{hosts}{server}(['os','eq','linux'],['os','eq','bsd']) ;
+  my @types ;
+  foreach my $srvs_i ( @srvs ) { push(@types , $srvs_i->{type}) ;}
+  ok("@types" , 'redhat suse conectiva freebsd') ;
   
 }
 #########################
@@ -477,7 +494,9 @@ my $DATA = q`<?xml version="1.0" encoding="iso-8859-1"?>
   ` , 'XML::Smart::Parser') ;
   
   my @nodes = $XML->{root}{foo}->nodes ;
+  
   ok($nodes[0]->{arg},'z');
+
   
   my @nodes = $XML->{root}{foo}->nodes_keys ;
   ok("@nodes",'bar');
@@ -507,13 +526,146 @@ my $DATA = q`<?xml version="1.0" encoding="iso-8859-1"?>
 #########################
 {
 
+  my $XML = XML::Smart->new() ;
+  
+  $XML->{menu}{option}[0] = {
+  name => "Help" ,
+  level => {from => 1 , to => 99} ,
+  } ;
+  
+  $XML->{menu}{option}[0]{sub}{option}[0] = {
+  name => "Busca" ,
+  level => {from => 1 , to => 99} ,
+  } ;
+
+  my $data = $XML->data(nospace => 1 , noheader => 1 ) ;
+  
+  ok($data , q`<menu><option name="Help"><level from="1" to="99"/><sub><option name="Busca"><level from="1" to="99"/></option></sub></option></menu>`) ;
+
+}
+#########################
+{
+
+  use XML::Smart ;
+  
+  my $XML = XML::Smart->new() ;
+  
+  $XML->{menu}{arg1} = 123 ;
+  $XML->{menu}{arg2} = 456 ;
+  
+  $XML->{menu}{arg2}{subarg} = 999 ;
+  
+  ok($XML->{menu}{arg1} , 123) ;
+  ok($XML->{menu}{arg2} , 456) ;
+  ok($XML->{menu}{arg2}{subarg} , 999) ;
+
+  my $data = $XML->data(nospace => 1 , noheader => 1 ) ;
+  ok($data , q`<menu arg1="123"><arg2 subarg="999">456</arg2></menu>`) ;
+
+}
+#########################
+{
+
+  use XML::Smart ;
+  
+  my $XML = XML::Smart->new() ;
+  
+  $XML->{menu}{arg2} = 456 ;
+  $XML->{menu}{arg1} = 123 ;
+  
+  my $data = $XML->data(nospace => 1 , noheader => 1 ) ;
+  ok($data , q`<menu arg2="456" arg1="123"/>`) ;
+
+  $XML->{menu}{arg2}->set_node ;
+  my $data = $XML->data(nospace => 1 , noheader => 1 ) ;
+  ok($data , q`<menu arg1="123"><arg2>456</arg2></menu>`) ;
+  
+
+  $XML->{menu}{arg2}->set_node(0) ;
+  my $data = $XML->data(nospace => 1 , noheader => 1 ) ;
+  ok($data , q`<menu arg2="456" arg1="123"/>`) ;
+  
+  $XML->{menu}->set_order(arg1 , arg2) ;
+  my $data = $XML->data(nospace => 1 , noheader => 1 ) ;
+  ok($data , q`<menu arg1="123" arg2="456"/>`) ;
+  
+  delete $XML->{menu}{arg2}[0] ;
+
+  my $data = $XML->data(nospace => 1 , noheader => 1 ) ;
+  ok($data , q`<menu arg1="123"/>`) ;
+
+}
+#########################
+{
+
+  my $XML = XML::Smart->new($DATA , 'XML::Smart::Parser') ;
+  $XML = $XML->{hosts} ;
+  
+  my $addr = $XML->{server}('type','eq','suse'){address} ;
+  
+  ok($addr->path , '/hosts/server[1]/address') ;
+  
+  my $addr0 = $XML->{server}('type','eq','suse'){address}[0] ;
+  
+  ok($addr0->path , '/hosts/server[1]/address[0]') ;
+  ok($addr0->path_as_xpath , '/hosts/server[2]/address') ;
+  
+  my $addr1 = $XML->{server}('type','eq','suse'){address}[1] ;
+  
+  my $type = $XML->{server}('version','>=','9'){type} ;
+
+  ok($type->path , '/hosts/server[2]/type') ;
+  
+  my $addr = $XML->{server}('version','>=','9'){address} ;
+
+  ok($addr->path , '/hosts/server[2]/address') ;
+  
+  my $addr0 = $XML->{server}('version','>=','9'){address}[0] ;
+
+  ok($addr0->path , '/hosts/server[2]/address[0]') ;
+  ok($addr0->path_as_xpath , '/hosts/server[3]/@address') ;
+  
+  my $type = $XML->{server}('version','>=','9'){type} ;
+  
+  ok($type->path , '/hosts/server[2]/type') ;
+  ok($type->path_as_xpath , '/hosts/server[3]/@type') ;
+    
+}
+#########################
+{
+
+  use XML::Smart ;
+  
+  my $XML = XML::Smart->new($DATA , 'XML::Smart::Parser') ;
+  
+  my $xp1 = $XML->XPath ;
+  my $xp2 = $XML->XPath ;
+  ok($xp1,$xp2) ;
+  
+  my $xp1 = $XML->XPath ;
+  $XML->{hosts}{tmp} = 123 ;
+  my $xp2 = $XML->XPath ;
+  
+ ## Test cache of the XPath object:
+  ok(1) if $xp1 != $xp2 ;
+
+  delete $XML->{hosts}{tmp} ;
+
+  my $data = $XML->XPath->findnodes_as_string('/') ;
+  
+  ok($data , q`<hosts><server os="linux" type="redhat" version="8.0"><address>192.168.0.1</address><address>192.168.0.2</address></server><server os="linux" type="suse" version="7.0"><address>192.168.1.10</address><address>192.168.1.20</address></server><server address="192.168.2.100" os="linux" type="conectiva" version="9.0" /><server address="192.168.3.30" os="bsd" type="freebsd" version="9.0" /></hosts>`) ;
+
+}
+#########################
+{
+
   eval(q`use LWP::UserAgent`) ;
   if ( !$@ ) {
   
     my $url = 'http://www.perlmonks.org/index.pl?node_id=16046' ;
   
     print "\nURL: $url\n" ;
-    print "Do you want to test XML::Smart with URL? (y|n*) " ;
+    print "Do you want to test XML::Smart with an URL? (y|n*) " ;
     
     chomp( my $opt = <STDIN>);
     
@@ -538,7 +690,7 @@ my $DATA = q`<?xml version="1.0" encoding="iso-8859-1"?>
 }
 #########################
 
-print "\nTests ended! By!\n" ;
+print "\nThe End! By!\n" ;
 
 1 ;
 
