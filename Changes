@@ -1,7 +1,11 @@
 Revision history for Perl extension XML::Smart.
 
 
-1.6 2004-5-26
+1.6.2 2004-5-28
+    - Fixed minor bug on XML::Smart::DTD.
+
+
+1.6.1 2004-5-26
     - Added support to DTD: new method apply_dtd().
     - Fixed bug when values are XML::Smart objects and the key order.
     - Fixed bug with creation of null trees and orders of already existing keys.

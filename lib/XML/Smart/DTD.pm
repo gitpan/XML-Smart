@@ -712,17 +712,19 @@ sub apply_dtd {
   my $xml = shift ;
   my $dtd = shift ;
   
-  if ( !ref($dtd) ) { $dtd = XML::Smart::DTD->new($dtd , @_) ;}
+  if ( ref($dtd) ne 'XML::Smart::DTD' ) { $dtd = XML::Smart::DTD->new($dtd , @_) ;}
   
   $$xml->{DTD} = $dtd ;
+
+  return if !$dtd || !$dtd->tree || !%{ $dtd->tree } ;
   
-  _apply_dtd($dtd , $xml->tree , undef , {} , {} ) ;
+  _apply_dtd($dtd , $xml->tree , undef , undef , {} , undef , undef , {} , @_) ;
 }
 
 sub _apply_dtd {
-  my ($dtd , $tree , $tag , $ar_i , $prev_tree , $prev_tag , $parsed) = @_ ;
+  my ($dtd , $tree , $tag , $ar_i , $prev_tree , $prev_tag , $prev_exists , $parsed , %opts) = @_ ;
   
-  #print "$tag>> $tree , $tag , $prev_tree , $prev_tag , $parsed\n" ;
+  ##print "$tag>> $tree , $tag , $prev_tree , $prev_tag , $parsed >> $opts{no_delete}\n" ;
   
   if ( ref($tree) ) {
     if ($$parsed{"$tree"}) { return ;}
@@ -731,8 +733,7 @@ sub _apply_dtd {
   
   if (ref($tree) eq 'HASH') {
   
-    if ( $dtd->elem_exists($tag) ) {
-      
+    if ( $tag ne '' && $dtd->elem_exists($tag) ) {
       if ( $dtd->is_elem_empty($tag) ) {
         $prev_tree->{$tag} = {} ;
       }
@@ -799,14 +800,14 @@ sub _apply_dtd {
           $tree->{$Key}{CONTENT} = $content if $content ne '' ;
         }
         elsif ( ref($tree->{$Key}) eq 'ARRAY' ) {
-          if ( !$dtd->is_elem_child_multi($tag , $Key) ) {
+          if ( $tag ne '' && !$dtd->is_elem_child_multi($tag , $Key) ) {
             $tree->{$Key} = $tree->{$Key}[0] ;
           }
         }
         
-        _apply_dtd($dtd , $tree->{$Key} , $Key , undef , $tree , $tag , $parsed) ;
+        _apply_dtd($dtd , $tree->{$Key} , $Key , undef , $tree , $tag , 1, $parsed , %opts) ;
       }
-      elsif ( $dtd->attr_exists($tag , $Key) ) {
+      elsif ( $tag ne '' && $dtd->attr_exists($tag , $Key) ) {
         delete $tree->{'/nodes'}{$Key} ;
         if ( ref($tree->{$Key}) eq 'HASH' && exists $tree->{$Key}{CONTENT} && (keys %{$tree->{$Key}}) == 1 ) {
           my $content = $tree->{$Key}{CONTENT} ;
@@ -818,22 +819,28 @@ sub _apply_dtd {
           if ( ref $tree->{$Key} eq 'HASH' ) { $tree->{$Key} = $tree->{$Key}{CONTENT} ;}
         }
         
-        if ( $tree->{$Key} eq '' ) {
+        if ( $tag ne '' && $tree->{$Key} eq '' ) {
           $tree->{$Key} = $dtd->get_attr_def($tag , $Key) ;
         }
       }
-      else { delete $tree->{$Key} ;}
+      else {
+        if ( $prev_exists && !$opts{no_delete} ) { delete $tree->{$Key} ;}
+        else {
+          _apply_dtd($dtd , $tree->{$Key} , $Key , undef , $tree , $tag , undef , $parsed , %opts) ;
+        }
+
+      }
     }
   }
   elsif (ref($tree) eq 'ARRAY') {
     my $i = -1 ;
     foreach my $tree_i ( @$tree ) {
       ++$i ;
-      _apply_dtd($dtd , $tree_i , $tag , $i , $prev_tree , $prev_tag , $parsed) ;
+      _apply_dtd($dtd , $tree_i , $tag , $i , $prev_tree , $prev_tag , $prev_exists , $parsed , %opts) ;
     }
   }
   else {
-    if ( $dtd->elem_exists($tag) ) {
+    if ( $tag ne '' && $dtd->elem_exists($tag) ) {
       if ( $prev_tree->{'/nodes'}{$tag} =~ /^(\w+,\d+),(\d*)/ ) { $prev_tree->{'/nodes'}{$tag} = "$1,1" ;}
       else { $prev_tree->{'/nodes'}{$tag} = 1 ;}
       
@@ -843,7 +850,7 @@ sub _apply_dtd {
         $prev_tree->{$tag}{CONTENT} = $content if $content ne '' ;
       }
     }
-    elsif ( $dtd->attr_exists($prev_tag , $tag) ) {
+    elsif ( $tag ne '' && $dtd->attr_exists($prev_tag , $tag) ) {
       delete $prev_tree->{'/nodes'}{$tag} ;
       if ( ref($prev_tree->{$tag}) eq 'HASH' && exists $prev_tree->{$tag}{CONTENT} && (keys %{$prev_tree->{$tag}}) == 1 ) {
         my $content = $prev_tree->{$tag}{CONTENT} ;
