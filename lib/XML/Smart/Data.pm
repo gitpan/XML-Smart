@@ -112,7 +112,7 @@ sub data {
     $meta = "\n" . join ("\n", @metas) ;
   }
   
-  my $wild = ' [format: wild]' if $args{wild} ;
+  my $wild = $args{wild} ? ' [format: wild]' : '' ;
   
   my $metagen = qq`\n<?meta name="GENERATOR" content="XML::Smart/$XML::Smart::VERSION$wild Perl/$] [$^O]" ?>` ;
   if ( $args{nometagen} ) { $metagen = '' ;}
@@ -471,8 +471,8 @@ sub _add_quote {
   
   &_add_basic_entity($data) ;
   
-  my $q1 = 1 if $data =~ /"/s ;
-  my $q2 = 1 if $data =~ /'/s ;
+  my $q1 = ($data =~ /"/s) ? 1 : undef ;
+  my $q2 = ($data =~ /'/s) ? 1 : undef ;
   
   if (!$q1 && !$q2) { return( qq`"$data"` ) ;}
   

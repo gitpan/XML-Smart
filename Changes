@@ -1,5 +1,10 @@
 Revision history for Perl extension XML::Smart.
 
+
+1.6 2004-02-05
+    - Fixed simple bug when XML::Smart object used on recursions/loops.
+
+
 1.5 2004-01-15
     - Added method aliase tree_pointer().
     - Added method root().

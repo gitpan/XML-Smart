@@ -25,7 +25,7 @@ use XML::Smart::Data qw(data) ;
 use XML::Smart::XPath qw(xpath XPath xpath_pointer XPath_pointer) ;
 
 our ($VERSION) ;
-$VERSION = '1.5' ;
+$VERSION = '1.5.1' ;
 
 #################
 # NO_XML_PARSER #
@@ -729,7 +729,7 @@ sub find_arg {
 
 sub content {
   my $this = shift ;
-  my $set_i = shift if $#_ > 0 ;
+  my $set_i = $#_ > 0 ? shift : undef ;
   
   if ( defined $$this->{content} ) {
     if (@_) { ${$$this->{content}} = $_[0] ;}

@@ -618,7 +618,7 @@ sub FETCH {
 
 sub STORE {
   my $this = shift ;
-  my $i = shift if $#_ > 0 ;
+  my $i = $#_ > 0 ? shift : undef ;
   
   if ( $i =~ /^\d+$/ ) {
     my $set ;
