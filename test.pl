@@ -126,9 +126,9 @@ content2
   
   my $cont_2 = $XML->{root}->content ;
   
-  ok($cont_2 , 123) ;
+  skip( ($] >= 5.007 && $] <= 5.008 ? "Skip on $]" : 0 ) , $cont_2 , 123) ;
   
-  ok( !tied $XML->{root}->pointer->{CONTENT} ) ;
+  skip( ($] >= 5.007 && $] <= 5.008 ? "Skip on $]" : 0 ) , !tied $XML->{root}->pointer->{CONTENT} ) ;
   
   ok( !tied $XML->{root}{tag1}{sub}->pointer->{CONTENT} ) ;
   
@@ -138,7 +138,8 @@ content2
   
   my $data = $XML->data(noheader => 1) ;
   
-  ok($data , q`<root>123<tag1 arg1="123">
+  skip( ($] >= 5.007 && $] <= 5.008 ? "Skip on $]" : 0 ) ,
+  $data , q`<root>123<tag1 arg1="123">
     <sub arg="1">sub_content</sub>
   </tag1>
   <tag2 arg1="123"/></root>

@@ -178,8 +178,20 @@ sub is_valid_tree {
 ###############
 
 sub _is_unicode {
-  if ($] >= 5.008) {
+  if ($] >= 5.008001) {
     if ( utf8::is_utf8($_[0])) { return 1 ;}
+  }
+  elsif ($] >= 5.008) {
+    require Encode ;
+    if ( Encode::is_utf8($_[0])) { return 1 ;}
+  }
+  elsif ( $] >= 5.007 ) {
+    my $is = eval(q`
+      if ( $_[0] =~ /[\x{100}-\x{10FFFF}]/s) { return 1 ;}
+      return undef ;
+    `);
+    $@ = undef ;
+    return 1 if $is ;
   }
   else {
     ## No Perl internal support for UTF-8! ;-/

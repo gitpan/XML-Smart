@@ -135,6 +135,18 @@ key. So this actually returns another object, pointhing (inside it) to the key:
 
   $addr .= ':80' ; ## After this $addr isn't an object any more, just a SCALAR!
 
+
+==> When I generate the XML data new lines (\n) are added to the content!
+
+You should use the options for the method data() and save() to not add identation to the generated data:
+
+  $XML->data( noident => 1 ) ;
+
+  ## or better:
+
+  $XML->data( nospace => 1 ) ;
+
+
 ==> Your question is not here?
 
 Just send me an e-mail. ;-P
