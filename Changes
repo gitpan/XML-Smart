@@ -1,5 +1,9 @@
 Revision history for Perl extension XML::Smart.
 
+1.6 2004-5-9
+    - Fixed minor bug with search of attributes when they are as contents.
+
+
 1.5.9 2004-4-12
     - Fixed minor bug with null trees and arrays.
 

@@ -23,7 +23,7 @@ use XML::Smart::Tie ;
 use XML::Smart::Tree ;
 
 our ($VERSION) ;
-$VERSION = '1.5.9' ;
+$VERSION = '1.6' ;
 
 ###############
 # AUTOLOADERS #
@@ -64,7 +64,7 @@ sub NO_XML_PARSER {
 sub new {
   my $class = shift ;
   my $file = shift ;
-  my $parser = shift ;
+  my $parser = ($_[0] !~ /^(?:uper|low|arg|on)\w+$/i) ? shift(@_) : '' ;
   
   my $this = Object::MultiType->new(
   boolsub   => \&boolean ,
@@ -925,6 +925,7 @@ sub find_arg {
       my $data ;
       if ($name =~ /^content$/i) { $name = 'CONTENT' ;}
       $data = ref($hash) eq 'HASH' ? $$hash{$name} : $hash ;
+      $data = $$data{CONTENT} if ref($data) eq 'HASH' ;
       
       if    ($type eq 'eq'  && $data eq $value)     { push(@hash,$hash_i) ; push(@i,$i) ; last ;}
       elsif ($type eq 'ne'  && $data ne $value)     { push(@hash,$hash_i) ; push(@i,$i) ; last ;}

@@ -3,7 +3,7 @@
 ###use Data::Dumper ; print Dumper( $XML->tree ) ;
 
 use Test;
-BEGIN { plan tests => 131 } ;
+BEGIN { plan tests => 133 } ;
 use XML::Smart ;
 
 no warnings ;
@@ -930,6 +930,35 @@ TEXT1 &amp; more
   ok($type->path , '/hosts/server[2]/type') ;
   ok($type->path_as_xpath , '/hosts/server[3]/@type') ;
     
+}
+#########################
+{
+
+  my $XML = new XML::Smart(q`
+  <root>
+    <output name='123'>
+      <frames format='a'/>
+      <frames format='b'/>
+    </output>
+    <output>
+      <name>456</name>
+      <frames format='c'/>
+      <frames format='d'/>
+    </output>
+  </root>
+  `,'smart');
+  
+  $XML = $XML->cut_root ;
+  
+  my @frames_123 = @{ $XML->{output}('name','eq',123){frames} } ;
+  my @formats_123 = map { $_->{format} } @frames_123 ;
+  
+  my @frames_456 = @{ $XML->{output}('name','eq',456){frames} } ;
+  my @formats_456 = map { $_->{format} } @frames_456 ;
+
+  ok( join(";", @formats_123) , 'a;b' ) ;
+  ok( join(";", @formats_456) , 'c;d' ) ;
+
 }
 #########################
 {
