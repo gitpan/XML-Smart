@@ -12,7 +12,7 @@
 
 package XML::Smart::Tree ;
 
-use XML::Smart::Data ;
+use XML::Smart::Entity qw(_parse_basic_entity) ;
 
 no warnings ;
 
@@ -28,6 +28,8 @@ $VERSION = '1.0' ;
   my $DEFAULT_LOADED ;
   
   use vars qw($NO_XML_PARSER);
+  
+
 
 ###################
 # LOAD_XML_PARSER #
@@ -298,7 +300,7 @@ sub _Start {
   $args{'/back'} = $this->{PARSING}{p} ;
   
   if ($this->{NOENTITY}) {
-    foreach my $Key ( keys %args ) { &XML::Smart::Data::_parse_basic_entity( $args{$Key} ) ;}
+    foreach my $Key ( keys %args ) { &_parse_basic_entity( $args{$Key} ) ;}
   }
   
   if ( defined $this->{PARSING}{p}{$tag} ) {
@@ -360,7 +362,7 @@ sub _Char {
       else { delete $this->{PARSING}{p}{'/order'} ;}
     }
   }
-  elsif ($this->{NOENTITY}) { &XML::Smart::Data::_parse_basic_entity($content) ;}
+  elsif ($this->{NOENTITY}) { &_parse_basic_entity($content) ;}
   
   if ( !exists $this->{PARSING}{p}{CONTENT} ) {
     $this->{PARSING}{p}{CONTENT} = $content ;

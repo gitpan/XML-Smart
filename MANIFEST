@@ -6,6 +6,7 @@ test.pl
 lib/XML/Smart.pm
 lib/XML/Smart/Base64.pm
 lib/XML/Smart/Data.pm
+lib/XML/Smart/Entity.pm
 lib/XML/Smart/HTMLParser.pm
 lib/XML/Smart/Parser.pm
 lib/XML/Smart/Tie.pm

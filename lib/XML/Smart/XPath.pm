@@ -62,6 +62,7 @@ sub xpath {
   }
   
   if ( !@_ ) { return $xpath ;}
+  return ;
 }
 
 #################
@@ -78,6 +79,7 @@ sub xpath_pointer {
   my $xpath = XML::XPath->new(xml => $this->data_pointer(nospace => 1 , noheader => 1)) ;
   
   if ( !@_ ) { return $xpath ;}
+  return ;
 }
 
 #######

@@ -21,11 +21,33 @@ use vars qw(@ISA) ;
 
 use XML::Smart::Tie ;
 use XML::Smart::Tree ;
-use XML::Smart::Data qw(data) ;
-use XML::Smart::XPath qw(xpath XPath xpath_pointer XPath_pointer) ;
 
 our ($VERSION) ;
-$VERSION = '1.5.3' ;
+$VERSION = '1.5.4' ;
+
+###############
+# AUTOLOADERS #
+###############
+
+sub data {
+  require XML::Smart::Data ;
+  *data = \&XML::Smart::Data::data ;
+  &XML::Smart::Data::data(@_) ;
+}
+
+sub xpath { _load_xpath() ; &XML::Smart::XPath::xpath(@_) ;}
+sub XPath { _load_xpath() ; &XML::Smart::XPath::XPath(@_) ;}
+sub xpath_pointer { _load_xpath() ; &XML::Smart::XPath::xpath_pointer(@_) ;}
+sub XPath_pointer { _load_xpath() ; &XML::Smart::XPath::XPath_pointer(@_) ;}
+
+sub _load_xpath {
+  require XML::Smart::XPath ;
+  *xpath = \&XML::Smart::XPath::xpath ;
+  *XPath = \&XML::Smart::XPath::XPath ;
+  *xpath_pointer = \&XML::Smart::XPath::xpath_pointer ;
+  *XPath_pointer = \&XML::Smart::XPath::XPath_pointer ;
+  *_load_xpath = sub {} ;
+}
 
 #################
 # NO_XML_PARSER #
@@ -833,7 +855,7 @@ XML::Smart - A smart, easy and powerful way to access/create XML files/data.
 
 This module has an easy way to access/create XML data. It's based on the HASH
 tree that is made of the XML data, and enable a dynamic access to it with the
-Perl syntax for Hashe and Array, without needing to care if you have a Hashe or an
+Perl syntax for Hash and Array, without needing to care if you have a Hash or an
 Array in the tree. In other words, B<each point in the tree work as a Hash and
 an Array at the same time>!
 
