@@ -1,6 +1,11 @@
 Revision history for Perl extension XML::Smart.
 
 
+1.6.9 2004-9-21
+    - dump_tree() and similars methods will dump hash keys sorted now.
+    - Hooks on_start, on_char and on_end for the parser will receive the parser object too.
+
+
 1.6.8 2004-8-3
     - Fixed minor bug for order of keys and new multiple elements.
     - Fixed assigment of content with the method content() for new trees.

@@ -23,7 +23,7 @@ use XML::Smart::Tie ;
 use XML::Smart::Tree ;
 
 our ($VERSION) ;
-$VERSION = '1.6.8' ;
+$VERSION = '1.6.9' ;
 
 ###############
 # AUTOLOADERS #
@@ -467,11 +467,13 @@ sub tree_pointer { &pointer ;}
 
 sub dump_tree {
   require Data::Dumper ;
+  local $Data::Dumper::Sortkeys = 1 ;
   return Data::Dumper::Dumper( &tree ) ;
 }
 
 sub dump_tree_ok {
   require Data::Dumper ;
+  local $Data::Dumper::Sortkeys = 1 ;
   return Data::Dumper::Dumper( &tree_ok ) ;
 }
 
@@ -482,11 +484,13 @@ sub dump_tree_ok {
 
 sub dump_pointer {
   require Data::Dumper ;
+  local $Data::Dumper::Sortkeys = 1 ;
   return Data::Dumper::Dumper( &pointer ) ;
 }
 
 sub dump_pointer_ok {
   require Data::Dumper ;
+  local $Data::Dumper::Sortkeys = 1 ;
   return Data::Dumper::Dumper( &pointer_ok ) ;
 }
 
@@ -1092,6 +1096,26 @@ sub data_pointer {
 sub DESTROY {
   my $this = shift ;
   $$this->clean ;
+}
+
+###################
+# STORABLE_FREEZE #
+###################
+
+sub STORABLE_freeze {
+  my $this = shift ;
+  return($this , [$$this->{tree} , $$this->{pointer}])  ;
+}
+
+#################
+# STORABLE_THAW #
+#################
+
+sub STORABLE_thaw {
+  my $this = shift ;
+  $$this->{tree} = $_[1]->[0] ;
+  $$this->{pointer} = $_[1]->[1] ;
+  return ;
 }
 
 #######

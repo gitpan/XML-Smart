@@ -41,10 +41,8 @@ my(@parsed , @stack, $level) ;
  &compile();
 
 sub new { 
-  my $this = shift;
-  my $class = ref($this) || $this;
-  return $this if ref $this;
-  $this = bless {} => $class ;
+  my $class = ($_[0] =~ /^[\w:]+$/) ? shift(@_) : __PACKAGE__ ;
+  my $this = bless {} , $class ;
 
   my %args = @_ ;
   $this->setHandlers(%args) ;
@@ -111,7 +109,7 @@ sub compile {
   *compile = sub {};
 }
 
-sub parse { 
+sub parse {
   my $this = shift ;
   
   @parsed = () ;

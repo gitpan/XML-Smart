@@ -110,7 +110,7 @@ sub load {
     $parser =~ s/:+/_/gs ;
     $parser =~ s/\W//g ;
     
-    if    ($parser =~ /^html?$/i) { $parser = 'XML_Smart_HTMLParser' ;}
+    if    ($parser =~ /^(?:html?|wild)$/i) { $parser = 'XML_Smart_HTMLParser' ;}
     elsif ($parser =~ /^(?:re|smart)/i) { $parser = 'XML_Smart_Parser' ;}
     
     foreach my $Key ( keys %PARSERS ) {
@@ -355,7 +355,7 @@ sub _Start {
   
   if ( $this->{SMART}{on_start} ) {
     my $sub = $this->{SMART}{on_start} ;
-    &$sub($tag , $this->{PARSING}{p} , $this->{PARSING}{p}{'/back'}) ;
+    &$sub($tag , $this->{PARSING}{p} , $this->{PARSING}{p}{'/back'} , undef , $this ) ;
   }
   
   return ;
@@ -444,7 +444,7 @@ sub _Char_process {
   
   if ( $this->{SMART}{on_char} ) {
     my $sub = $this->{SMART}{on_char} ;
-    &$sub($this->{PARSING}{p}{'/tag'} , $this->{PARSING}{p} , $this->{PARSING}{p}{'/back'} , \$this->{PARSING}{p}{CONTENT}) ;
+    &$sub($this->{PARSING}{p}{'/tag'} , $this->{PARSING}{p} , $this->{PARSING}{p}{'/back'} , \$this->{PARSING}{p}{CONTENT} , $this ) ;
   }
   
   return ;
@@ -486,7 +486,7 @@ sub _End { ##print "END>> @_[1] >> $_[0]->{PARSING}{p}{'/tag'}\n" ;
   
   if ( $this->{SMART}{on_end} ) {
     my $sub = $this->{SMART}{on_end} ;
-    &$sub($tag , $this->{PARSING}{p} , $back) ;
+    &$sub($tag , $this->{PARSING}{p} , $back , undef , $this) ;
   }
 
   $this->{PARSING}{p} = $back ;
