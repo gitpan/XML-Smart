@@ -1,0 +1,7 @@
+Revision history for Perl extension XML::Smart.
+
+0.01  Mon May 12 11:02:48 2003
+	- First release!
+	- original version; created by h2xs 1.21 with options
+		-X -A -n XML::Smart
+

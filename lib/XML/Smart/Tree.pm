@@ -1,0 +1,241 @@
+#############################################################################
+## Name:        Tree.pm
+## Purpose:     XML::Smart::Tree
+## Author:      Graciliano M. P.
+## Modified by:
+## Created:     10/05/2003
+## RCS-ID:      
+## Copyright:   (c) 2003 Graciliano M. P.
+## Licence:     This program is free software; you can redistribute it and/or
+##              modify it under the same terms as Perl itself
+#############################################################################
+
+package XML::Smart::Tree ;
+use Carp ;
+
+our ($VERSION) ;
+$VERSION = '1.0' ;
+
+  my %PARSERS = (
+  XML_Parser => 0 ,
+  XML_Smart_Parser => 0 ,
+  ) ;
+  
+  my $LOADED ;
+
+###################
+# LOAD_XML_PARSER #
+###################
+
+sub load_XML_Parser {
+  eval('use XML::Parser ;') ;
+  if ($@) { return( undef ) ;}
+  
+  my $xml = XML::Parser->new(Style => 'Tree') ;
+  my $tree = $xml->parse('<root><foo arg1="t1" arg2="t2" /></root>') ;
+  
+  if (!$tree || ref($tree) ne 'ARRAY') { return( undef ) ;}
+  if ($tree->[1][2][0]{arg1} eq 't1') { return( 1 ) ;}
+  return( undef ) ;
+}
+
+#########################
+# LOAD_XML_SMART_PARSER #
+#########################
+
+sub load_XML_Smart_Parser {
+  eval('use XML::Smart::Parser ;') ;
+  if ($@) { print "/// $@\n" ; return( undef ) ;}
+  return(1) ;
+}
+
+########
+# LOAD #
+########
+
+sub load {
+  my ( $parser ) = @_ ;
+  my $module ;
+  
+  if ($parser) {
+    $parser =~ s/:+/_/gs ;
+    $parser =~ s/\W//g ;
+    foreach my $Key ( keys %PARSERS ) {
+      if ($Key =~ /^$parser$/i) { $module = $Key ; last ;}
+    }
+  }
+  
+  if ($module eq 'XML_Parser') {
+    $PARSERS{XML_Parser} = 1 if &load_XML_Parser() ;
+  }
+  elsif ($module eq 'XML_Smart_Parser') {
+    $PARSERS{XML_Smart_Parser} = 1 if &load_XML_Smart_Parser() ;
+  }
+  elsif (!$LOADED) {
+    $PARSERS{XML_Parser} = 1 if &load_XML_Parser() ;
+    $module = 'XML_Parser' ;
+    if ( !$PARSERS{XML_Parser} ) {
+      $PARSERS{XML_Smart_Parser} = 1 if &load_XML_Smart_Parser() ;  
+      $module = 'XML_Smart_Parser' ;
+    }
+    $LOADED = 1 ;
+  }
+  
+  return($module) ;
+}
+
+#########
+# PARSE #
+#########
+
+sub parse {
+  my $xml ;
+  my $module = $_[1] ;
+  
+  my $data ;
+  {
+    my ($fh,$open) ;
+    
+    if (ref($_[0]) eq 'GLOB') { $fh = $_[0] ;}
+    elsif ($_[0] =~ /<.*?>/s) { $data = $_[0] ;}
+    else { open ($fh,$_[0]) ; binmode($fh) ; $open = 1 ;}
+    
+    if ($fh) {
+      1 while( read($fh, $data , 1024*8 , length($data) ) ) ;
+      close($fh) if $open ;
+    }
+  }
+  
+  if ($data !~ /<.*?>/s) { return( {} ) ;}
+
+  
+  if (!$module || !$PARSERS{$module}) {
+    if    ($PARSERS{XML_Parser}) { $module = 'XML_Parser' ;}
+    elsif ($PARSERS{XML_Smart_Parser}) { $module = 'XML_Smart_Parser' ;}
+  }
+  
+  if ($module eq 'XML_Parser') { $xml = XML::Parser->new() ;}
+  elsif ($module eq 'XML_Smart_Parser') { $xml = XML::Smart::Parser->new() ;}
+  else { croak("Can't find a parser for XML!") ;}
+    
+  $xml->setHandlers(
+  Init => \&_Init ,
+  Start => \&_Start ,
+  Char  => \&_Char ,
+  End   => \&_End ,
+  Final => \&_Final ,
+  ) ;
+  
+  my $tree = $xml->parse($data);
+  return( $tree ) ;
+}
+
+##########
+# MODULE #
+##########
+
+sub module {
+  foreach my $Key ( keys %PARSERS ) {
+    if ($PARSERS{$Key}) {
+      my $module = $Key ;
+      $module =~ s/_/::/g ;
+      return( $module ) ;
+    }
+  }
+  return('') ;
+}
+
+#########
+# _INIT #
+#########
+
+sub _Init {
+  my $this = shift ;
+  $this->{PARSING}{tree} = {} ;
+  $this->{PARSING}{p} = $this->{PARSING}{tree} ;
+}
+
+##########
+# _START #
+##########
+
+sub _Start {
+  my $this = shift ;
+  my ($tag , %args) = @_ ;
+
+  $args{'/tag'} = $tag ;
+  $args{'/back'} = $this->{PARSING}{p} ;
+  
+  if ( defined $this->{PARSING}{p}{$tag} ) {
+    if ( ref($this->{PARSING}{p}{$tag}) ne 'ARRAY' ) {
+      my $prev = $this->{PARSING}{p}{$tag} ;
+      $this->{PARSING}{p}{$tag} = [$prev] ;
+    }
+    push(@{$this->{PARSING}{p}{$tag}} , \%args) ;
+    
+    my $i = @{$this->{PARSING}{p}{$tag}} ; $i-- ;
+    $args{'/i'} = $i ;
+    
+    $this->{PARSING}{p} = \%args ;
+  }
+  else {
+    $this->{PARSING}{p}{$tag} = \%args ;
+    $this->{PARSING}{p} = \%args ;
+  }
+}
+
+#########
+# _CHAR #
+#########
+
+sub _Char {
+  my $this = shift ;
+  #print "CONT>> @_\n" ;
+  $this->{PARSING}{p}{CONTENT} .= $_[0] ;
+  push(@{$this->{content_ref}} , $this->{PARSING}{p} ) ;
+}
+
+########
+# _END #
+########
+
+sub _End {
+  my $this = shift ;
+  if ( $this->{PARSING}{p}{'/tag'} ne $_[0] ) { return ;}
+
+  my $back  = delete $this->{PARSING}{p}{'/back'} ;
+  my $tag = delete $this->{PARSING}{p}{'/tag'} ;
+  my $i = delete $this->{PARSING}{p}{'/i'} || 0 ;
+  
+  my $nkeys = keys %{$this->{PARSING}{p}} ;
+  
+  if ( $nkeys == 1 && defined $this->{PARSING}{p}{CONTENT} ) {
+    if (ref($back->{$tag}) eq 'ARRAY') { $back->{$tag}[$i] = $this->{PARSING}{p}{CONTENT} ;}
+    else { $back->{$tag} = $this->{PARSING}{p}{CONTENT} ;}
+  }
+  
+  $this->{PARSING}{p} = $back ;
+}
+
+##########
+# _FINAL #
+##########
+
+sub _Final {
+  my $this = shift ;
+  my $tree = $this->{PARSING}{tree} ;
+  
+  foreach my $hash ( @{$this->{content_ref}} ) {
+    if ( $$hash{CONTENT} !~ /\S/s ) { delete $$hash{CONTENT} ;}
+  }
+  
+  delete($this->{PARSING}) ;
+  return($tree) ;
+}
+
+#######
+# END #
+#######
+
+1;
+
