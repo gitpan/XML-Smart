@@ -213,7 +213,7 @@ sub _Init {
 # _START #
 ##########
 
-sub _Start {
+sub _Start { #print "START>> @_[1]\n" ;
   my $this = shift ;
   my ($tag , %args) = @_ ;
   
@@ -274,7 +274,7 @@ sub _Start {
 
 sub _Char {
   my $this = shift ;
-  #print "CONT>> @_\n" ;
+  #print "CONT>> ##@_##\n" ;
 
   my $content = $_[0] ;
   
@@ -297,7 +297,7 @@ sub _Char {
 # _END #
 ########
 
-sub _End {
+sub _End { #print "END>> @_[1]\n" ;
   my $this = shift ;
   my $tag = shift ;
   

@@ -3,7 +3,7 @@
 ###use Data::Dumper ; print Dumper( $XML->tree ) ;
 
 use Test;
-BEGIN { plan tests => 55 } ;
+BEGIN { plan tests => 56 } ;
 use XML::Smart ;
 
 no warnings ;
@@ -24,13 +24,13 @@ my $DATA = q`<?xml version="1.0" encoding="iso-8859-1"?>
 
 #########################
 {
-  
+
   my $XML = XML::Smart->new('<root><foo bar="x"/></root>' , 'XML::Smart::Parser') ;
   my $data = $XML->data(noheader => 1) ;
   
   $data =~ s/\s//gs ;
   ok($data,'<root><foobar="x"/></root>') ;
-  
+
 }
 #########################
 {
@@ -491,6 +491,22 @@ my $DATA = q`<?xml version="1.0" encoding="iso-8859-1"?>
 #########################
 {
 
+  my $data = qq`
+  <root>
+    <item arg1="x">
+      <data><![CDATA[some CDATA code <non> <parsed> <tag> end]]></data>
+    </item>
+  </root>
+  `;
+
+  my $XML = XML::Smart->new($data , 'XML::Smart::Parser') ;
+  
+  ok( $XML->{root}{item}{data} , q`some CDATA code <non> <parsed> <tag> end`) ;
+
+}
+#########################
+{
+
   eval(q`use LWP::UserAgent`) ;
   if ( !$@ ) {
   
@@ -525,5 +541,6 @@ my $DATA = q`<?xml version="1.0" encoding="iso-8859-1"?>
 print "\nTests ended! By!\n" ;
 
 1 ;
+
 
 

@@ -22,7 +22,7 @@ use vars qw(@ISA) ;
 use XML::Smart::Tree ;
 
 our ($VERSION) ;
-$VERSION = '1.3' ;
+$VERSION = '1.3.1' ;
 
 #######
 # NEW #

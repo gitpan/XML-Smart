@@ -89,12 +89,12 @@ sub regexp {
   my $PI_Tail = "\\?>|$S1$UntilQMs(?:[^>?]$UntilQMs)*>";
   my $DT_ItemSE = "<(?:!(?:--$Until2Hyphens>|[^-]$MarkupDeclCE)|\\?$Name(?:$PI_Tail))|%$Name;|$S";
   my $DocTypeCE = "$DT_IdentSE(?:$S)?(?:\\[(?:$DT_ItemSE)*](?:$S)?)?>?";
-  my $DeclCE = "--(?:$CommentCE)?|\\[CDATA\\[(?:$CDATA_CE)?|DOCTYPE(?:$DocTypeCE)?";
+  my $DeclCE = "--(?:$CommentCE)?|\\[CDATA\\[(?:($CDATA_CE)(?{${package}::char_CDATA(\$2)}))?|DOCTYPE(?:$DocTypeCE)?";
   my $PI_CE = "$Name(?:$PI_Tail)?";
 
-  my $EndTagCE = "($Name)(?{${package}::end(\$2)})(?:$S)?>";
+  my $EndTagCE = "($Name)(?{${package}::end(\$3)})(?:$S)?>";
   my $AttValSE = "\"([^<\"]*)\"|'([^<']*)'";
-  my $ElemTagCE = "($Name)(?:$S($Name)(?:$S)?=(?:$S)?(?:$AttValSE)(?{[\@{\$^R||[]},\$4=>defined\$5?\$5:\$6]}))*(?:$S)?(/)?>(?{${package}::start(\$3,\@{\$^R||[]})})(?{\${7} and ${package}::end(\$3)})";
+  my $ElemTagCE = "($Name)(?:$S($Name)(?:$S)?=(?:$S)?(?:$AttValSE)(?{[\@{\$^R||[]},\$5=>defined\$6?\$6:\$7]}))*(?:$S)?(/)?>(?{${package}::start(\$4,\@{\$^R||[]})})(?{\${8} and ${package}::end(\$4)})";
   my $MarkupSPE = "<(?:!(?:$DeclCE)?|\\?(?:$PI_CE)?|/(?:$EndTagCE)?|(?:$ElemTagCE)?)";
 
   "(?:($TextSE)(?{${package}::char(\$1)}))$patch|$MarkupSPE";
@@ -132,27 +132,27 @@ sub parse {
   return &{$this->{Final}}($this, @{$final}) ;
 }
 
-sub init { 
+sub init {
   @stack = (); $level = 0;
   push(@parsed , 'Init' , [@_]) ;
   return ;
 }
 
-sub final { 
+sub final {
   die "not properly closed tag '$stack[-1]'\n" if @stack;
   die "no element found\n" unless $level;
   push(@parsed , 'Final' , [@_]) ;
   return ;
 } 
 
-sub start { 
+sub start {
   die "multiple roots, wrong element '$_[0]'\n" if $level++ && !@stack;
   push(@stack, $_[0]);
   push(@parsed , 'Start' , [@_]) ;
   return ;
 }
 
-sub char { 
+sub char {
   push(@parsed , 'Char' , [@_]) , return if @stack;
 
   for (my $i=0; $i < length $_[0]; $i++) {
@@ -161,7 +161,11 @@ sub char {
   }
 }
 
-sub end { 
+sub char_CDATA {
+  &char( substr($_[0] , 0 , -3) ) ;
+}
+
+sub end {
   pop(@stack) eq $_[0] or die "mismatched tag '$_[0]'\n";
   push(@parsed , 'End' , [@_]) ;
   return ;

@@ -1,6 +1,9 @@
 Revision history for Perl extension XML::Smart.
 
-1.3  Mon May 30 02:03:00 2003
+1.3.1 18/06/2003
+    - Just a bug fix in XML::Smart::Parser for CDATA.
+
+1.3  15/06/2003
     - Can build/load Wild XML data (like HTML).
     - New methods: null(), key(), i().
     - Fixed select search with multiple values. And added support to search in keys, not only ARRAY ref.
