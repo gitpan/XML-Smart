@@ -377,8 +377,6 @@ sub _Char {
       $this->{PARSING}{p}{"/.CONTENT/0"} = $cont ;
       
       splice( @{$this->{PARSING}{p}{'/order'}} , -1,0, "/.CONTENT/0") ; # Add inside (0=init line , 1=end line).
-      
-      push( @{$this->{PARSING}{p}{'/order'}} , "/.CONTENT/0") ;
     }
 
     my $x = ++$this->{PARSING}{p}{'/.CONTENT/x'} ;

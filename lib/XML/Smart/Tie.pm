@@ -38,7 +38,13 @@ sub _generate_nulltree {
   my $tree = $saver->{tree} ;
   
   my ($keyprev , $treeprev , $array , $key , $i) ;
+  
+  ##print "GEN>> @tree\n" ;
+
   foreach my $tree_i ( @tree ) {
+    ##print "*> $tree_i\n" ;
+    ##print Dumper( $tree , $treeprev , $array ) if $tree_i eq 'more' ;
+    
     if (ref($tree) ne 'HASH' && ref($tree) ne 'ARRAY') {
       my $cont = $$treeprev{$keyprev} ;
       $$treeprev{$keyprev} = {} ;
@@ -63,10 +69,13 @@ sub _generate_nulltree {
       $treeprev = $prev ;
     }
     elsif (ref $tree eq 'ARRAY') {
+      if (!exists $$tree[0] ) { $$tree[0] = {} ;}
+      if ( ref($$tree[0]) eq 'HASH' && !exists $$tree[0]{$tree_i} ) { $$tree[0]{$tree_i} = {} ;}
+
       my $prev = $tree ;
-      $tree = $$treeprev{$keyprev}[0] ;
-      $array = $$treeprev{$keyprev} ;
-      $treeprev = $prev ;
+      $tree = $$prev[0]{$tree_i} ;
+      $array = undef ;
+      $treeprev = $$prev[0] ;
     }
     else {
       if (exists $$tree{$tree_i}) {
@@ -91,8 +100,6 @@ sub _generate_nulltree {
     }
   }
   
-  #use Data::Dumper ; print Dumper( $saver->{tree} , $tree );
-  
   $saver->{point} = $tree ;
   $saver->{back} = $treeprev ;
   $saver->{array} = $array ;
@@ -100,6 +107,8 @@ sub _generate_nulltree {
   $saver->{i} = $i ;
 
   $saver->{null} = 0 ;
+  
+  ##use Data::Dumper ; print Dumper( $saver->{tree} , $saver->{point} , $saver->{back} , $saver->{array} );
 
   return( 1 ) ;
 }
@@ -176,6 +185,9 @@ sub STORE {
   &XML::Smart::Tie::_delete_XPATH($this->{saver}) ;
   
   if ($this->{saver}->{array}) {
+    if ( !exists $this->{saver}->{array}[$i] && $key !~ /^\/\.CONTENT/ ) {
+      push( @{$this->{saver}->{back}->{'/order'}} , $key) ;
+    }
     return $this->{saver}->{array}[$i] = $_[0] ;
   }
   elsif ($i == 0) {
@@ -187,12 +199,20 @@ sub STORE {
     }
   }
   else {
-    if (exists $this->{saver}->{back}{$key}) {
+    if ( exists $this->{saver}->{back}{$key}) {
       my $k = $this->{saver}->{back}{$key} ;
       $this->{saver}->{back}{$key} = [$k] ;
     }
     else { $this->{saver}->{back}{$key} = [] ;}
     $this->{saver}->{array} = $this->{saver}->{back}{$key} ;
+
+    if ( !exists $this->{saver}->{array}[$i] && $key !~ /^\/\.CONTENT/ ) {
+      if ( !exists $this->{saver}->{back}->{'/order'} ) {
+        my %keys = map { ( $_ eq '/order' || $_ eq '/nodes' ? () : ($_ => 1) ) } keys %{$this->{saver}->{back}} ;
+        push( @{$this->{saver}->{back}->{'/order'}} , sort keys %keys ) ;
+      }
+      push( @{$this->{saver}->{back}->{'/order'}} , $key) ;
+    }
     return $this->{saver}->{array}[$i] = $_[0] ;
   }
 
@@ -271,10 +291,11 @@ sub PUSH {
   my $this = shift ;
   my $key = $this->{saver}->{key} ;
 
-  #print "PUSH>> $key >> @{$this->{saver}->{keyprev}}\n" ;
+  ##print "PUSH>> $key >> @{$this->{saver}->{keyprev}}\n" ;
 
+  my $gen_null ;
   if ( $this->{saver}->{null} ) {
-    &XML::Smart::Tie::_generate_nulltree($this->{saver},$key) ;
+    $gen_null = &XML::Smart::Tie::_generate_nulltree($this->{saver},$key) ;
   }
   
   &XML::Smart::Tie::_delete_XPATH($this->{saver}) ;
@@ -283,7 +304,7 @@ sub PUSH {
     if (exists $this->{saver}->{back}{$key}) {
       if ( ref $this->{saver}->{back}{$key} ne 'ARRAY' ) {
         my $k = $this->{saver}->{back}{$key} ;
-        $this->{saver}->{back}{$key} = [$k] ;      
+        $this->{saver}->{back}{$key} = [ ( $gen_null ? () : $k) ] ;      
       }
     }
     else { $this->{saver}->{back}{$key} = [] ;}
@@ -298,8 +319,9 @@ sub UNSHIFT {
   my $this = shift ;
   my $key = $this->{saver}->{key} ;
 
+  my $gen_null ;
   if ( $this->{saver}->{null} ) {
-    &XML::Smart::Tie::_generate_nulltree($this->{saver},$key) ;
+    $gen_null = &XML::Smart::Tie::_generate_nulltree($this->{saver},$key) ;
   }
   
   &XML::Smart::Tie::_delete_XPATH($this->{saver}) ;
@@ -308,7 +330,7 @@ sub UNSHIFT {
     if (exists $this->{saver}->{back}{$key}) {
       if ( ref $this->{saver}->{back}{$key} ne 'ARRAY' ) {
         my $k = $this->{saver}->{back}{$key} ;
-        $this->{saver}->{back}{$key} = [$k] ;      
+        $this->{saver}->{back}{$key} = [ ( $gen_null ? () : $k) ] ;      
       }
     }
     else { $this->{saver}->{back}{$key} = [] ;}
@@ -316,7 +338,7 @@ sub UNSHIFT {
     $this->{saver}->{point} = $this->{saver}->{back}{$key}[0] ;
   }
   
-  return unshift(@{$this->{saver}->{array}} , @_) ;
+  return unshift(@{$this->{saver}->{array}} , @_ ) ;
 }
 
 sub SPLICE {

@@ -22,6 +22,45 @@ my $DATA = q`<?xml version="1.0" encoding="iso-8859-1"?>
     <server address="192.168.3.30" os="bsd" type="freebsd" version="9.0"/>
 </hosts>
 `;
+
+#########################
+{
+
+  my $XML = XML::Smart->new( q`
+  <html>
+    <head>
+      <title>Blah blah</title>
+    </head>
+    <body>
+      <form>
+        <input id="0"/>        
+        <br/>
+        <input id="2"/>
+        <br/>            
+      </form>
+    </body>
+    <null/>
+  </html>
+  ` );
+  
+  my $data = $XML->data( noheader => 1 ) ;
+  $data =~ s/\s+/ /gs ;
+  
+  ok($data , q`<html> <head> <title>Blah blah</title> </head> <body> <form> <input id="0"/> <br/> <input id="2"/> <br/> </form> </body> <null/> </html> `) ;
+  
+  my @order = $XML->{html}{body}{form}->order ;
+  ok(join(" ", @order) eq 'input br input br') ;
+  
+  $XML->{html}{body}{form}->set_order( qw(br input input br) ) ;
+  @order = $XML->{html}{body}{form}->order ;
+  ok(join(" ", @order) eq 'br input input br') ;
+
+  my $data = $XML->data( noheader => 1 ) ;
+  $data =~ s/\s+/ /gs ;
+  
+  ok($data , q`<html> <head> <title>Blah blah</title> </head> <body> <form> <br/> <input id="0"/> <input id="2"/> <br/> </form> </body> <null/> </html> `) ;
+
+}
 #########################
 {
 
@@ -206,13 +245,14 @@ content2
   
   my $XML = XML::Smart->new() ;
   
-  $XML->{sub}{sub2} = $XML0 ;
-  push(@{$XML->{sub}{sub2}} , $XML1 ) ;
+  $XML->{sub}{sub2} = $XML0->tree ;
+  push(@{$XML->{sub}{sub2}} , $XML1->tree ) ;
   
   my $data = $XML->data(noheader => 1) ;
   
   $data =~ s/\s//gs ;
   ok($data,'<sub><sub2><root><foo1name="x"/></root></sub2><sub2><root><foo2name="y"/></root></sub2></sub>') ;
+
 }
 #########################
 {
@@ -333,6 +373,7 @@ content2
     
   my $dataok = q`<serveros="Linux"type="mandrake"version="8.9"><address>192.168.3.201</address><address>192.168.3.202</address></server>`;
   ok($data,$dataok) ;
+
 }
 #########################
 {
@@ -366,6 +407,7 @@ content2
   
   my $dataok = q`<HOSTS><SERVEROS="linux"TYPE="redhat"VERSION="8.0"><ADDRESS>192.168.0.1</ADDRESS><ADDRESS>192.168.0.2</ADDRESS></SERVER><SERVEROS="linux"TYPE="suse"VERSION="7.0"><ADDRESS>192.168.1.10</ADDRESS><ADDRESS>192.168.1.20</ADDRESS></SERVER><SERVERADDRESS="192.168.2.100"OS="linux"TYPE="conectiva"VERSION="9.0"/><SERVERADDRESS="192.168.3.30"OS="bsd"TYPE="freebsd"VERSION="9.0"/></HOSTS>`;
   ok($data,$dataok) ;
+  
 }
 #########################
 {
@@ -402,7 +444,7 @@ content2
   
   ok($data,$dataok) ;
                        
-  $XML->{hosts}[1]{server}[1] = {
+  $XML->{hosts}[1]{server}[0] = {
   os => 'LX'  ,
   type => 'red'  ,
   ver => 123 ,
@@ -414,15 +456,14 @@ content2
   $dataok = q`<root><hosts><serveros="lx"type="red"ver="123"/></hosts><hosts><serveros="LX"type="red"ver="123"/></hosts></root>`;
   
   ok($data,$dataok) ;
-  
-}
 
+}
 #########################
 {
 
   my $XML = XML::Smart->new('' , 'XML::Smart::Parser') ;
                           
-  $XML->{hosts}[1]{server}[1] = {
+  $XML->{hosts}[1]{server}[0] = {
   os => 'LX'  ,
   type => 'red'  ,
   ver => 123 ,
@@ -434,7 +475,7 @@ content2
   $dataok = q`<hosts><serveros="LX"type="red"ver="123"/></hosts>`;
   
   ok($data,$dataok) ;
-  
+
 }
 #########################
 {
@@ -448,12 +489,15 @@ content2
   } ;
 
   push( @{$XML->{hosts}} , {XXXXXX => 1}) ;
-  unshift( @{$XML->{hosts}{x}}  , $srv) ;
+  
+  unshift( @{$XML->{hosts}}  , $srv) ;
+  
+  push( @{$XML->{hosts}{more}}  , {YYYY => 1}) ;
   
   my $data = $XML->data(noheader => 1) ;
   $data =~ s/\s//gs ;
   
-  $dataok = q`<root><hostsos="lx"type="red"ver="123"/><hostsXXXXXX="1"/></root>` ;
+  $dataok = q`<root><hostsos="lx"type="red"ver="123"><moreYYYY="1"/></hosts><hostsXXXXXX="1"/></root>` ;
   
   ok($data,$dataok) ;
 

@@ -25,7 +25,7 @@ use XML::Smart::Data qw(data) ;
 use XML::Smart::XPath qw(xpath XPath xpath_pointer XPath_pointer) ;
 
 our ($VERSION) ;
-$VERSION = '1.5.1' ;
+$VERSION = '1.5.2' ;
 
 #################
 # NO_XML_PARSER #
@@ -550,6 +550,13 @@ sub set_order {
   my $this = shift ;
   my $pointer = $$this->{point} ;
   @{$$pointer{'/order'}} = @_ ;
+}
+
+sub order {
+  my $this = shift ;
+  my $pointer = $$this->{point} ;
+  return @{$$pointer{'/order'}} if defined $$pointer{'/order'} && ref($$pointer{'/order'}) eq 'ARRAY' ;
+  return() ;
 }
 
 #######
@@ -1279,6 +1286,10 @@ Return the nodes names (not the object) in the pointer (keys that aren't argumen
 =head2  null()
 
 Return I<true> if the XML object has a null tree or if the pointer is in some place that doesn't exist.
+
+=head2  order()
+
+Return the order of the keys. See I<set_order()>.
 
 =head2  path()
 

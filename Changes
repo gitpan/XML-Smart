@@ -1,7 +1,14 @@
 Revision history for Perl extension XML::Smart.
 
 
-1.6 2004-02-05
+1.5.2 2004-02-15
+    - Fixed some minor bug on PUSH and UNSHIFT.
+    - Added support for multiple nodes for the same tag and interpolation of different nodes.
+    - Removed duplicated entry of '/.CONTENT/0' at '/order' key.
+    - Added new tests and revision of the previous tests.
+
+
+1.5.1 2004-02-05
     - Fixed simple bug when XML::Smart object used on recursions/loops.
 
 
@@ -10,7 +17,7 @@ Revision history for Perl extension XML::Smart.
     - Added method root().
     - Added event handlers: on_start, on_char, on_end.
     - Multiple contents handled in different way. $xml->{CONTENT} is tied
-      and the data will be at $xml->{'./CONTENT/0} , $xml->{'./CONTENT/1} , $xml->{'./CONTENT/2}...
+      and the data will be at $xml->{'/.CONTENT/0} , $xml->{'/.CONTENT/1} , $xml->{'/.CONTENT/2}...
     - data() will keep the multiple contents order.
     - content(i , data) can be used to set a content part.
     - $srt = content() returns all the multiple contents grouped.
