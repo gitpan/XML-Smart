@@ -23,7 +23,7 @@ use XML::Smart::Tie ;
 use XML::Smart::Tree ;
 
 our ($VERSION) ;
-$VERSION = '1.5.7' ;
+$VERSION = '1.5.8' ;
 
 ###############
 # AUTOLOADERS #
@@ -394,12 +394,99 @@ sub _copy_hash {
   return( $copy ) ;
 }
 
+###########
+# TREE_OK #
+###########
+
+sub tree_ok {
+  return _tree_ok_parse( &tree ) ;
+}
+
+##############
+# POINTER_OK #
+##############
+
+sub pointer_ok {
+  return _tree_ok_parse( &pointer ) ;
+}
+
+sub tree_pointer_ok { &pointer_ok ;}
+
+##################
+# _TREE_OK_PARSE #
+##################
+
+sub _tree_ok_parse {
+  my ( $ref ) = @_ ;
+  my $copy ;
+  
+  if (ref $ref eq 'HASH') {
+    $copy = {} ;
+    foreach my $Key ( keys %$ref ) {
+      next if $Key eq '/order' || $Key eq '/nodes' || $Key =~ /\/\.CONTENT\// ;
+      if (ref $$ref{$Key}) {
+        $$copy{$Key} =&_tree_ok_parse($$ref{$Key}) ;
+      }
+      else { $$copy{$Key} = $$ref{$Key} ;}
+    }
+  }
+  elsif (ref $ref eq 'ARRAY') {
+    $copy = [] ;
+    foreach my $i ( @$ref ) {
+      if (ref $i) {
+        push(@$copy , &_tree_ok_parse($i) ) ;
+      }
+      else { push(@$copy , $i) ;}
+    }
+  }
+  elsif (ref $ref eq 'SCALAR') {
+    my $copy = $$ref ;
+    return( \$copy ) ;
+  }
+  else { return( {} ) ;}
+
+  return( $copy ) ;
+}
+
 ########
 # TREE #
 ########
 
 sub tree { return( ${$_[0]}->{tree} ) ;}
 sub tree_pointer { &pointer ;}
+
+#############
+# DUMP_TREE #
+#############
+
+sub dump_tree {
+  require Data::Dumper ;
+  return Data::Dumper::Dumper( &tree ) ;
+}
+
+sub dump_tree_ok {
+  require Data::Dumper ;
+  return Data::Dumper::Dumper( &tree_ok ) ;
+}
+
+
+################
+# DUMP_POINTER #
+################
+
+sub dump_pointer {
+  require Data::Dumper ;
+  return Data::Dumper::Dumper( &pointer ) ;
+}
+
+sub dump_pointer_ok {
+  require Data::Dumper ;
+  return Data::Dumper::Dumper( &pointer_ok ) ;
+}
+
+
+sub dump_tree_pointer { &dump_pointer ;}
+sub dump_tree_pointer_ok { &dump_pointer_ok ;}
 
 ###########
 # POINTER #
@@ -1134,7 +1221,7 @@ clone of XML::Parser::Lite with some fixes.
 
 =item OPTIONS
 
-You can force the uper case and lower case for tags (nodes) and arguments (attributes).
+You can force the uper case and lower case for tags (nodes) and arguments (attributes), and other extra things.
 
 =over 10
 
@@ -1153,6 +1240,29 @@ Make the tags uper case.
 =item uperarg
 
 Make the arguments uper case.
+
+=item arg_single
+
+Set the value of arguments to 1 when they have a I<undef> value. 
+
+I<** This option will work only when the XML is parsed by B<XML::Smart::HTMLParser>, since it accept arguments without values:>
+
+  my $xml = new XML::Smart(
+  '<root><foo arg1="" flag></root>' ,
+  'XML::Smart::HTMLParser' ,
+  arg_single => 1 ,
+  ) ;
+
+In this example the option "arg_single" was used, what will define I<flag> to 1, but I<arg1> will still have a null string value ("").
+
+Here's the tree of the example above:
+
+  'root' => {
+              'foo' => {
+                         'flag' => 1,
+                         'arg1' => ''
+                       },
+            },
 
 =item on_start (CODE) I<*optional>
 
@@ -1178,9 +1288,25 @@ I<** This options are applied when the XML data is loaded. For XML generation se
 
 =back
 
-Example of use:
+B<Examples of use:>
 
-  my $xml = XML::Smart->new($data , 'html' ,
+  my $xml_from_url = XML::Smart->new("http://www.perlmonks.org/index.pl?node_id=16046") ;
+  
+  ...
+  
+  my $xml_from_str = XML::Smart->new(q`<?xml version="1.0" encoding="iso-8859-1" ?>
+  <root>
+    <foo arg="xyz"/>
+  </root>
+  `) ;
+
+  ...
+
+  my $null_xml = XML::Smart->new() ;
+
+  ...
+
+  my $xml_from_html = XML::Smart->new($html_data , 'html' ,
   lowtag => 1 ,
   lowarg => 1 ,
   on_char => sub {
@@ -1412,6 +1538,17 @@ Make the tree from current point in the XML tree (not from the base as data()).
 
 Accept the same OPTIONS of the method B<I<data()>>.
 
+=head2  dump_tree()
+
+Dump the tree of the object using L<Data::Dumper>.
+
+=head2  dump_tree_pointer()
+
+Dump the tree of the object, from the pointer, using L<Data::Dumper>.
+
+=head2  dump_pointer()
+
+I<** Same as dump_tree_pointer()>.
 
 =head2  i()
 
@@ -1464,6 +1601,10 @@ Return the path of the pointer in the XPath format.
 =head2  pointer
 
 Return the HASH tree from the pointer.
+
+=head2  pointer_ok
+
+Return a copy of the tree of the object, B<from the pointer>, but without internal keys added by I<XML::Smart>.
 
 =head2 root
 
@@ -1533,6 +1674,14 @@ object that works like a HASH/ARRAY through tie.
 =head2  tree_pointer()
 
 Same as I<pointer()>.
+
+=head2  tree_ok()
+
+Return a copy of the tree of the object, but without internal keys added by I<XML::Smart>, like I</order> and I</nodes>.
+
+=head2  tree_pointer_ok()
+
+Return a copy of the tree of the object, B<from the pointer>, but without internal keys added by I<XML::Smart>.
 
 =head2  xpath() || XPath()
 
@@ -1723,6 +1872,8 @@ from the method:
 So, if you use the object as a string it works as a string,
 if you use as an object it works as an object! ;-P
 
+I<**See the method content() for more.>
+
 =head1 CREATING XML DATA
 
 To create XML data is easy, you just use as a normal HASH, but you don't need
@@ -1750,7 +1901,7 @@ to care with multiple nodes, and ARRAY creation/convertion!
   <server os="Linux" type="mandrake" version="8.9">
     <address>192.168.3.201</address>
     <address>192.168.3.202</address>
-  </server>ok 19
+  </server>
 
 After create your XML tree you just save it or get the data:
 
@@ -1858,7 +2009,7 @@ or if you don't want to care with quotes, end tags, etc... when writing by hand 
 So, you can write by hand a bad XML file, load it with I<XML::Smart::HTMLParser>, and B<rewrite well>
 saving it again! ;-P
 
-** Note that <SCRIPT> tags will only by parse right if the content is inside
+** Note that <SCRIPT> tags will only parse right if the content is inside
 comments <!--...-->, since they can have tags:
 
   <SCRIPT LANGUAGE="JavaScript"><!--
@@ -1907,7 +2058,7 @@ an ARRAY. You also have other extra resources, like a search for nodes by attrib
 
 The idea for this module, came from the problem that exists to access a complex struture in XML.
 You just need to know how is this structure, something that is generally made looking the XML file (what is wrong).
-But in the same time is hard to always check (by code) the struture, before access it.
+But at the same time is hard to always check (by code) the struture, before access it.
 XML is a good and easy format to declare your data, but to extrac it in a tree way, at least in my opinion,
 isn't easy. To fix that, came to my mind a way to access the data with some query language, like SQL.
 The first idea was to access using something like:

@@ -234,8 +234,13 @@ sub _data {
 
     foreach my $Key ( @all_keys ) {
       if ($Key eq '' || $Key eq '/order' || $Key eq '/nodes') { next ;}
-      
-      if (ref($$tree{$Key})) {
+            
+      if ( $Key eq '!--' && (!ref($$tree{$Key}) || ( ref($$tree{$Key}) eq 'HASH' && (keys %{$$tree{$Key}}) == 1 && (defined $$tree{$Key}{CONTENT} || defined $$tree{$Key}{content}) ) ) ) {
+        my $ct = $$tree{$Key} ;
+        if (ref $$tree{$Key}) { $ct = defined $$tree{$Key}{CONTENT} ? $$tree{$Key}{CONTENT} : $$tree{$Key}{content} ;} ;
+        if ( $ct ne '' ) { $tags .= "$ident<!-- $ct -->" ;}
+      }
+      elsif (ref($$tree{$Key})) {
         my $k = $$tree{$Key} ;
         my $i ;
         if (ref $k eq 'XML::Smart') { $k = ${$$tree{$Key}}->{point} ;}
@@ -254,14 +259,14 @@ sub _data {
           $ident = '' ; $stat[1] += 2 ;
         }
         next if tied($$tree{$Key}) ;
-        $cont .= $$tree{$Key} ;
+        
+        if ( $$tree{$Key} ne '' ) {
+          my $p0 = length($tags) ;
+          $tags .= $$tree{$Key} ;        
+          $cont = [$p0,length($tags)] ;
+        }
       }
       elsif ($Key =~ /^\/\.CONTENT\/\d+$/) { $tags .= $$tree{$Key} ;}
-      elsif ( $Key eq '!--' && (!ref($$tree{$Key}) || ( ref($$tree{$Key}) eq 'HASH' && keys %{$$tree{$Key}} == 1 && (defined $$tree{$Key}{CONTENT} || defined $$tree{$Key}{content}) ) ) ) {
-        my $ct = $$tree{$Key} ;
-        if (ref $$tree{$Key}) { $ct = defined $$tree{$Key}{CONTENT} ? $$tree{$Key}{CONTENT} : $$tree{$Key}{content} ;} ;
-        $cont .= '<!--' . $ct . '-->' ;
-      }
       elsif ( $stat[4] && $$tree{$Key} eq '') { $args_end .= " $Key" ;}
       else {
         my $tp = _data_type($$tree{$Key}) ;
@@ -300,7 +305,10 @@ sub _data {
       }
     }
     
-    if ( $cont ne '' ) {
+    if ( $cont ) {
+      my ( $po , $p1 ) = @$cont ;
+      my $cont = substr($tags , $po , $p1) ;
+        
       my $tp = _data_type($cont) ;
       
       if ( $node_type =~ /^(\w+),(\d+),(\d*)$/ ) {
@@ -324,6 +332,13 @@ sub _data {
         $args .= ' dt:dt="binary.base64"' ;
       }
       else { &_add_basic_entity($cont) ;}
+      
+      my $px = $p1 ;
+      while( substr($tags , $px , 1) =~ /\s/ ) { ++$px ;}
+      
+      if ( $px > $p1 ) { substr($tags , $p1 , $px-$p1) = '' ;}
+      
+      substr($tags , $po , $p1) = $cont ;
     }
     
     if ($args_end ne '') {
@@ -337,14 +352,7 @@ sub _data {
     elsif ($args ne '' && $tags ne '') {
       $$data .= qq`$ident<$tag$args>` if $tag ne '' ;
       $$data .= $tags ;
-      $$data .= $cont ;
-      $$data .= $ident if $cont eq '' ;
-      $$data .= qq`</$tag>` if $tag ne '' ;
-    }
-    elsif ($args ne '' && $cont ne '') {
-      $$data .= qq`$ident<$tag$args>` if $tag ne '' ;
-      $$data .= $cont ;
-      $$data .= $ident if $cont eq '' ;
+      $$data .= $ident if !$cont ;
       $$data .= qq`</$tag>` if $tag ne '' ;
     }
     elsif ($args ne '') {
@@ -353,13 +361,7 @@ sub _data {
     elsif ($tags ne '') {
       $$data .= qq`$ident<$tag>` if $tag ne '' ;
       $$data .= $tags ;
-      $$data .= $cont ;
-      $$data .= $ident if $cont eq '' ;
-      $$data .= qq`</$tag>` if $tag ne '' ;
-    }
-    elsif ($cont ne '') {
-      $$data .= qq`$ident<$tag>` if $tag ne '' ;
-      $$data .= $cont ;
+      $$data .= $ident if !$cont ;
       $$data .= qq`</$tag>` if $tag ne '' ;
     }
   }

@@ -3,7 +3,7 @@
 ###use Data::Dumper ; print Dumper( $XML->tree ) ;
 
 use Test;
-BEGIN { plan tests => 130 } ;
+BEGIN { plan tests => 131 } ;
 use XML::Smart ;
 
 no warnings ;
@@ -23,6 +23,7 @@ my $DATA = q`<?xml version="1.0" encoding="iso-8859-1"?>
 </hosts>
 `;
 
+if(1){
 #########################
 {
 
@@ -135,14 +136,46 @@ content2
   
   my $data = $XML->data(noheader => 1) ;
   
-  ok($data , q`<root>
-  <tag1 arg1="123">
+  ok($data , q`<root>123<tag1 arg1="123">
     <sub arg="1">sub_content</sub>
   </tag1>
-  <tag2 arg1="123"/>123</root>
+  <tag2 arg1="123"/></root>
 
 `) ;
   
+}
+
+}
+#########################
+{
+
+  my $xml = new XML::Smart(q`
+<foo>
+TEXT1 & more
+<if.1>
+  aaa
+</if.1>
+<!-- CMT -->
+<elsif.2>
+  bbb
+</elsif.2>
+</foo>  
+  `,'html') ;
+  
+  my $data = $xml->data(noident=>1 , noheader => 1 , wild=>1) ;
+  
+  ok($data,q`<foo>
+TEXT1 &amp; more
+<if.1>
+  aaa
+</if.1>
+<!--  CMT  -->
+<elsif.2>
+  bbb
+</elsif.2></foo>
+
+`) ;
+
 }
 #########################
 {
@@ -206,7 +239,7 @@ content2
   my $data = $XML->data(noheader => 1 , nospace => 1) ;
   $data =~ s/\s//gs ;
   
-  ok($data,q`<html><title>TITLE</title><bodybgcolor="#000000"><foo1bar1="x1"/><SCRIPTLANGUAGE="JavaScript"><_-->functionstopError(){returntrue;}window.onerror=stopError;document.writeln("some&gt;&gt;written!");</_--></SCRIPT><foo2bar2="x2"/></body></html>`);
+  ok($data,q`<html><title>TITLE</title><bodybgcolor="#000000"><foo1bar1="x1"/><SCRIPTLANGUAGE="JavaScript"><!--functionstopError(){returntrue;}window.onerror=stopError;document.writeln("some>>written!");--></SCRIPT><foo2bar2="x2"/></body></html>`);
 
 }
 #########################
@@ -382,7 +415,7 @@ content2
   my $data = $XML->data(noheader => 1) ;
   $data =~ s/\s//gs ;
   
-  my $dataok = qq`<fooport="80"><i>a</i><i>b</i>ct</foo>` ;
+  my $dataok = qq`<fooport="80">ct<i>a</i><i>b</i></foo>` ;
   
   ok($data,$dataok) ;
 

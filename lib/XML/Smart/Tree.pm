@@ -177,6 +177,7 @@ sub parse {
   if ( $args{upertag} ) { $xml->{SMART}{tag} = 2 ;}
   if ( $args{lowarg} ) { $xml->{SMART}{arg} = 1 ;}
   if ( $args{uperarg} ) { $xml->{SMART}{arg} = 2 ;}
+  if ( $args{arg_single} ) { $xml->{SMART}{arg_single} = 1 ;}  
 
   if ( $args{no_order} ) { $xml->{SMART}{no_order} = 1 ;}
   if ( $args{no_nodes} ) { $xml->{SMART}{no_nodes} = 1 ;}
@@ -286,6 +287,12 @@ sub _Start {
     }
     
     %args = %argsok ;
+  }
+  
+  if ( $this->{SMART}{arg_single} ) {
+    foreach my $Key ( keys %args ) {
+      $args{$Key} = 1 if !defined $args{$Key} ;
+    }
   }
   
   ## Args order:

@@ -1,5 +1,12 @@
 Revision history for Perl extension XML::Smart.
 
+1.5.8 2004-?-?
+    - Added methods tree_ok(), tree_pointer_ok(), pointer_ok(), dump_tree(),
+      dump_tree_pointer(), dump_pointer().
+    - Fixed position of CONTENT for single content with tags when creating the XML data().
+    - Fixed comment handling: <!-- ... -->
+
+
 1.5.7 2004-03-23
     - Fixed minor bug with BINARY data and XML::Parser, that handles each line
       of a content as a multiple content.
