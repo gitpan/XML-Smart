@@ -1,7 +1,21 @@
 Revision history for Perl extension XML::Smart.
 
-0.01  Mon May 12 11:02:48 2003
-	- First release!
-	- original version; created by h2xs 1.21 with options
-		-X -A -n XML::Smart
+1.2  Mon May 30 02:03:00 2003
+    - Added cut_root(), base(), back(), copy() and data_pointer() methods.
+    - New resource "return format".
+    - Support for basic entities (defaults).
+    - Added Support for URLs (with LWP::UserAgent).
+    - Unicode (UTF-8) support. (Work only on Perl-5.8+)
+    - Added support for binary and CDATA content and automatically detection of both.
+    - Added meta generator tag.
+    - Fixed bug in XML::Smart::Parser (XML::Parser::Lite). Break of REGEX parser on sub REGEX execution.
+    - Fixed bug with quotes.
+
+1.1  Mon May 23 03:12:12 2003
+    - Fixed some bugs.
+
+1.0  Mon May 12 11:02:48 2003
+    - First release!
+    - original version; created by h2xs 1.21 with options
+        -X -A -n XML::Smart
 

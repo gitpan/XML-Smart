@@ -9,7 +9,9 @@
 ## Licence:     This program is free software; you can redistribute it and/or
 ##              modify it under the same terms as Perl itself
 ##
-## This module is actualy XML::Parser::Lite. It's just here for convenience.
+## This module is actualy XML::Parser::Lite (with some updates). It's here
+## just for convenience.
+##
 ## See original code at CPAN for full source and POD.
 ##
 ## This module will be used when XML::Parser is not installed.
@@ -23,6 +25,8 @@
 #
 # $Id: Lite.pm,v 1.4 2001/10/15 21:25:05 paulk Exp $
 #
+# Changes: Graciliano M. P. <gm@virtuasites.com.br>
+#
 # ======================================================================
 
 package XML::Smart::Parser ;
@@ -30,31 +34,42 @@ package XML::Smart::Parser ;
 no warnings ;
 use strict;
 use vars qw($VERSION);
-$VERSION = sprintf("%d.%s", map {s/_//g; $_} q$Name: release-0_55-public $ =~ /-(\d+)_([\d_]+)/);
+$VERSION = 1.2 ;
+
+my(@parsed , @stack, $level) ;
+
+ &compile();
 
 sub new { 
-  my $self = shift;
-  my $class = ref($self) || $self;
-  return $self if ref $self;
+  my $this = shift;
+  my $class = ref($this) || $this;
+  return $this if ref $this;
+  $this = bless {} => $class ;
 
-  $self = bless {} => $class;
-  my %parameters = @_;
-  $self->setHandlers(); # clear first 
-  $self->setHandlers(%{$parameters{Handlers} || {}});
-  return $self;
+  my %args = @_ ;
+  $this->setHandlers(%args) ;
+  
+  $this->{NOENTITY} = 1 ;
+
+  return $this ;
 }
 
 sub setHandlers {
-  my $self = shift; 
-  no strict 'refs'; local $^W;
-  unless (@_) { foreach (qw(Start End Char Final Init)) { *$_ = sub {} } }
-  while (@_) { my($name => $func) = splice(@_, 0, 2); *$name = defined $func ? $func : sub {} }
-  return $self;
+  my $this = shift ;
+  my %args = @_;
+    
+  $this->{Init}  = $args{Init} || sub{} ;
+  $this->{Start} = $args{Start} || sub{} ;
+  $this->{Char}  = $args{Char} || sub{} ;
+  $this->{End}   = $args{End} || sub{} ;
+  $this->{Final} = $args{Final} || sub{} ;
+  
+  return 1 ;
 }
 
 sub regexp {
-  my $patch = shift || '';
-  my $package = __PACKAGE__;
+  my $patch = shift || '' ;
+  my $package = __PACKAGE__ ;
 
   my $TextSE = "[^<]+";
   my $UntilHyphen = "[^-]*-";
@@ -94,36 +109,51 @@ sub compile { local $^W;
   *compile = sub {};
 }
 
-setHandlers();
-compile();
-
 sub parse { 
-  init(); 
-  parse_re($_[1]);
-  final(); 
-}
+  my $this = shift ;
+  
+  @parsed = () ;
+  
+  init();
+  parse_re($_[0]);
+  final();
 
-my(@stack, $level);
+  no strict qw(refs);
+  
+  my $final = pop(@parsed) ; pop(@parsed) ;
+
+  for (my $i = 0 ; $i <= $#parsed ; $i+=2) {
+    my $args = $parsed[$i+1] ;
+    &{$this->{$parsed[$i]}}($this , (ref($args) ? @{$args} : $args) ) ;
+  }
+
+  @parsed = () ;
+
+  return &{$this->{Final}}($this, @{$final}) ;
+}
 
 sub init { 
   @stack = (); $level = 0;
-  Init(__PACKAGE__, @_);  
+  push(@parsed , 'Init' , [@_]) ;
+  return ;
 }
 
 sub final { 
   die "not properly closed tag '$stack[-1]'\n" if @stack;
   die "no element found\n" unless $level;
-  Final(__PACKAGE__, @_) 
+  push(@parsed , 'Final' , [@_]) ;
+  return ;
 } 
 
 sub start { 
   die "multiple roots, wrong element '$_[0]'\n" if $level++ && !@stack;
   push(@stack, $_[0]);
-  Start(__PACKAGE__, @_); 
+  push(@parsed , 'Start' , [@_]) ;
+  return ;
 }
 
 sub char { 
-  Char(__PACKAGE__, $_[0]), return if @stack;
+  push(@parsed , 'Char' , [@_]) , return if @stack;
 
   for (my $i=0; $i < length $_[0]; $i++) {
     die "junk '$_[0]' @{[$level ? 'after' : 'before']} XML element\n"
@@ -133,10 +163,12 @@ sub char {
 
 sub end { 
   pop(@stack) eq $_[0] or die "mismatched tag '$_[0]'\n";
-  End(__PACKAGE__, $_[0]);
+  push(@parsed , 'End' , [@_]) ;
+  return ;
 }
 
 # ======================================================================
 
 1;
+
 

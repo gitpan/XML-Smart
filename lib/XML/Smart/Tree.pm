@@ -20,6 +20,7 @@ $VERSION = '1.0' ;
   my %PARSERS = (
   XML_Parser => 0 ,
   XML_Smart_Parser => 0 ,
+  XML_Smart_HTMLParser => 0 ,
   ) ;
   
   my $LOADED ;
@@ -46,7 +47,17 @@ sub load_XML_Parser {
 
 sub load_XML_Smart_Parser {
   eval('use XML::Smart::Parser ;') ;
-  if ($@) { print "/// $@\n" ; return( undef ) ;}
+  if ($@) { return( undef ) ;}
+  return(1) ;
+}
+
+#############################
+# LOAD_XML_SMART_HTMLPARSER #
+#############################
+
+sub load_XML_Smart_HTMLParser {
+  eval('use XML::Smart::HTMLParser ;') ;
+  if ($@) { return( undef ) ;}
   return(1) ;
 }
 
@@ -61,6 +72,10 @@ sub load {
   if ($parser) {
     $parser =~ s/:+/_/gs ;
     $parser =~ s/\W//g ;
+    
+    if    ($parser =~ /^html?$/i) { $parser = 'XML_Smart_HTMLParser' ;}
+    elsif ($parser =~ /^(?:re|smart)/i) { $parser = 'XML_Smart_Parser' ;}
+    
     foreach my $Key ( keys %PARSERS ) {
       if ($Key =~ /^$parser$/i) { $module = $Key ; last ;}
     }
@@ -71,6 +86,9 @@ sub load {
   }
   elsif ($module eq 'XML_Smart_Parser') {
     $PARSERS{XML_Smart_Parser} = 1 if &load_XML_Smart_Parser() ;
+  }
+  elsif ($module eq 'XML_Smart_HTMLParser') {
+    $PARSERS{XML_Smart_HTMLParser} = 1 if &load_XML_Smart_HTMLParser() ;
   }
   elsif (!$LOADED) {
     $PARSERS{XML_Parser} = 1 if &load_XML_Parser() ;
@@ -98,6 +116,7 @@ sub parse {
     my ($fh,$open) ;
     
     if (ref($_[0]) eq 'GLOB') { $fh = $_[0] ;}
+    elsif ($_[0] =~ /^http:\/\/\w+[^\r\n]+$/s) { $data = &get_url($_[0]) ;}
     elsif ($_[0] =~ /<.*?>/s) { $data = $_[0] ;}
     else { open ($fh,$_[0]) ; binmode($fh) ; $open = 1 ;}
     
@@ -108,7 +127,6 @@ sub parse {
   }
   
   if ($data !~ /<.*?>/s) { return( {} ) ;}
-
   
   if (!$module || !$PARSERS{$module}) {
     if    ($PARSERS{XML_Parser}) { $module = 'XML_Parser' ;}
@@ -117,6 +135,7 @@ sub parse {
   
   if ($module eq 'XML_Parser') { $xml = XML::Parser->new() ;}
   elsif ($module eq 'XML_Smart_Parser') { $xml = XML::Smart::Parser->new() ;}
+  elsif ($module eq 'XML_Smart_HTMLParser') { $xml = XML::Smart::HTMLParser->new() ;}
   else { croak("Can't find a parser for XML!") ;}
     
   $xml->setHandlers(
@@ -129,6 +148,30 @@ sub parse {
   
   my $tree = $xml->parse($data);
   return( $tree ) ;
+}
+
+###########
+# GET_URL #
+###########
+
+sub get_url {
+  my ( $url ) = @_ ;
+  my $data ;
+  
+  require LWP ;
+  require LWP::UserAgent ;
+
+  my $ua = LWP::UserAgent->new();
+  
+  my $agent = $ua->agent() ;
+  $agent = "XML::Smart/$XML::Smart::VERSION $agent" ;
+  $ua->agent($agent) ;
+
+  my $req = HTTP::Request->new(GET => $url) ;
+  my $res = $ua->request($req) ;
+
+  if ($res->is_success) { return $res->content ;}
+  else { return undef ;}
 }
 
 ##########
@@ -167,6 +210,10 @@ sub _Start {
   $args{'/tag'} = $tag ;
   $args{'/back'} = $this->{PARSING}{p} ;
   
+  if ($this->{NOENTITY}) {
+    foreach my $Key ( keys %args ) { &XML::Smart::_parse_basic_entity( $args{$Key} ) ;}
+  }
+  
   if ( defined $this->{PARSING}{p}{$tag} ) {
     if ( ref($this->{PARSING}{p}{$tag}) ne 'ARRAY' ) {
       my $prev = $this->{PARSING}{p}{$tag} ;
@@ -192,7 +239,21 @@ sub _Start {
 sub _Char {
   my $this = shift ;
   #print "CONT>> @_\n" ;
-  $this->{PARSING}{p}{CONTENT} .= $_[0] ;
+
+  my $content = $_[0] ;
+  
+  if (! defined $this->{PARSING}{p}{'dt:dt'} && defined $this->{PARSING}{p}{'DT:DT'}) {
+    $this->{PARSING}{p}{'dt:dt'} = delete $this->{PARSING}{p}{'DT:DT'} ;
+  }
+  
+  if ( $this->{PARSING}{p}{'dt:dt'} =~ /binary\.base64/si ) {
+    require XML::Smart::Base64 ;
+    $content = &XML::Smart::Base64::decode_base64($content) ;
+    delete $this->{PARSING}{p}{'dt:dt'} ;
+  }
+  elsif ($this->{NOENTITY}) { &XML::Smart::_parse_basic_entity($content) ;}
+  
+  $this->{PARSING}{p}{CONTENT} .= $content ;
   push(@{$this->{content_ref}} , $this->{PARSING}{p} ) ;
 }
 
