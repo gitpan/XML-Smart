@@ -25,18 +25,38 @@ $VERSION = '1.0' ;
   XML_Smart_HTMLParser => 0 ,
   ) ;
   
-  my $LOADED ;
+  my $DEFAULT_LOADED ;
+  
+  use vars qw($NO_XML_PARSER);
 
 ###################
 # LOAD_XML_PARSER #
 ###################
 
 sub load_XML_Parser {
+  return if $NO_XML_PARSER ;
+  
   eval('use XML::Parser ;') ;
   if ($@) { return( undef ) ;}
   
-  my $xml = XML::Parser->new(Style => 'Tree') ;
-  my $tree = $xml->parse('<root><foo arg1="t1" arg2="t2" /></root>') ;
+  my ($xml , $tree) ;
+  
+  eval {
+    my $sig_warn = $SIG{__WARN__} ;
+    my $sig_die = $SIG{__DIE__} ;
+    
+    $SIG{__WARN__} = sub {} ;
+    $SIG{__DIE__} = sub {} ;
+    
+    no strict ;
+  
+    my $data = '<root><foo arg1="t1" arg2="t2" /></root>' ;
+    $xml = XML::Parser->new(Style => 'Tree') ;
+    $tree = $xml->parse($data) ;
+    
+    $SIG{__WARN__} = $sig_warn ;
+    $SIG{__DIE__} = $sig_die ;
+  } ;
   
   if (!$tree || ref($tree) ne 'ARRAY') { return( undef ) ;}
   if ($tree->[1][2][0]{arg1} eq 't1') { return( 1 ) ;}
@@ -83,23 +103,28 @@ sub load {
     }
   }
   
+  my $ok ;
   if ($module eq 'XML_Parser') {
     $PARSERS{XML_Parser} = 1 if &load_XML_Parser() ;
+    $ok = $PARSERS{XML_Parser} ;
   }
   elsif ($module eq 'XML_Smart_Parser') {
-    $PARSERS{XML_Smart_Parser} = 1 if &load_XML_Smart_Parser() ;
+    $PARSERS{XML_Smart_Parser} = 1 if !$PARSERS{XML_Smart_Parser} && &load_XML_Smart_Parser() ;
+    $ok = $PARSERS{XML_Smart_Parser} ;
   }
   elsif ($module eq 'XML_Smart_HTMLParser') {
-    $PARSERS{XML_Smart_HTMLParser} = 1 if &load_XML_Smart_HTMLParser() ;
+    $PARSERS{XML_Smart_HTMLParser} = 1 if !$PARSERS{XML_Smart_HTMLParser} && &load_XML_Smart_HTMLParser() ;
+    $ok = $PARSERS{XML_Smart_HTMLParser} ;
   }
-  elsif (!$LOADED) {
+  
+  if (!$ok && !$DEFAULT_LOADED) {
     $PARSERS{XML_Parser} = 1 if &load_XML_Parser() ;
     $module = 'XML_Parser' ;
     if ( !$PARSERS{XML_Parser} ) {
       $PARSERS{XML_Smart_Parser} = 1 if &load_XML_Smart_Parser() ;  
       $module = 'XML_Smart_Parser' ;
     }
-    $LOADED = 1 ;
+    $DEFAULT_LOADED = 1 ;
   }
   
   return($module) ;
@@ -130,7 +155,7 @@ sub parse {
   if ($data !~ /<.*?>/s) { return( {} ) ;}
   
   if (!$module || !$PARSERS{$module}) {
-    if    ($PARSERS{XML_Parser}) { $module = 'XML_Parser' ;}
+    if    ( !$NO_XML_PARSER && $INC{'XML/Parser.pm'} && $PARSERS{XML_Parser}) { $module = 'XML_Parser' ;}
     elsif ($PARSERS{XML_Smart_Parser}) { $module = 'XML_Smart_Parser' ;}
   }
   
@@ -149,6 +174,10 @@ sub parse {
   if ( $args{upertag} ) { $xml->{SMART}{tag} = 2 ;}
   if ( $args{lowarg} ) { $xml->{SMART}{arg} = 1 ;}
   if ( $args{uperarg} ) { $xml->{SMART}{arg} = 2 ;}
+  
+  $xml->{SMART}{on_start} = $args{on_start} if ref($args{on_start}) eq 'CODE' ;
+  $xml->{SMART}{on_char}  = $args{on_char}  if ref($args{on_char})  eq 'CODE' ;
+  $xml->{SMART}{on_end}   = $args{on_end}   if ref($args{on_end})   eq 'CODE' ;
   
   $xml->setHandlers(
   Init => \&_Init ,
@@ -209,14 +238,16 @@ sub _Init {
   my $this = shift ;
   $this->{PARSING}{tree} = {} ;
   $this->{PARSING}{p} = $this->{PARSING}{tree} ;
+  
+  return ;
 }
 
 ##########
 # _START #
 ##########
 
-sub _Start { #print "START>> @_[1]\n" ;
-  my $this = shift ;
+sub _Start {
+  my $this = shift ; ##print "START>> @_\n" ;
   my ($tag , %args) = @_ ;
   
   if    ( $this->{SMART}{tag} == 1 ) { $tag = lc($tag) ;}
@@ -249,14 +280,18 @@ sub _Start { #print "START>> @_[1]\n" ;
   
   ## Args order:
   {
-    my $type = $this->{SMART}{arg} ;
-    for(my $i = 1 ; $i < $#_ ; $i+=2) {
-      my $arg ;
-      if    ($type == 1) { $k = lc($_[$i]) ;}
-      elsif ($type == 2) { $k = uc($_[$i]) ;}
-      else { $arg = $_[$i] ;}
-      push( @{$args{'/order'}} , $arg) ;
+    my @order ; 
+    for(my $i = 1 ; $i < $#_ ; $i+=2) { push( @order , $_[$i] ) ;}
+    
+    if ( $this->{SMART}{arg} ) {
+      my $type = $this->{SMART}{arg} ;
+      foreach my $order_i ( @order ) {
+        if    ($type == 1) { $order_i = lc($order_i) ;}
+        elsif ($type == 2) { $order_i = uc($order_i) ;}
+      }
     }
+    
+    $args{'/order'} = \@order if @order ;
   }
 
   $args{'/tag'} = $tag ;
@@ -280,8 +315,16 @@ sub _Start { #print "START>> @_[1]\n" ;
   }
   else {
     $this->{PARSING}{p}{$tag} = \%args ;
+    ## Change the pointer:
     $this->{PARSING}{p} = \%args ;
   }
+  
+  if ( $this->{SMART}{on_start} ) {
+    my $sub = $this->{SMART}{on_start} ;
+    &$sub($tag , $this->{PARSING}{p} , $this->{PARSING}{p}{'/back'}) ;
+  }
+  
+  return ;
 }
 
 #########
@@ -298,6 +341,8 @@ sub _Char {
     $this->{PARSING}{p}{'dt:dt'} = delete $this->{PARSING}{p}{'DT:DT'} ;
   }
   
+  if ( $content !~ /\S+/s ) { return ;}
+  
   if ( $this->{PARSING}{p}{'dt:dt'} =~ /binary\.base64/si ) {
     require XML::Smart::Base64 ;
     $content = &XML::Smart::Base64::decode_base64($content) ;
@@ -307,23 +352,53 @@ sub _Char {
     my $nkeys = keys %{$this->{PARSING}{p}{'/nodes'}} ;
     if ($nkeys < 1) { delete $this->{PARSING}{p}{'/nodes'} ;}
     
-    my @order = @{$this->{PARSING}{p}{'/order'}} ;
-    my @order_ok ;
-    foreach my $order_i ( @order ) { push(@order_ok , $order_i) if $order_i ne 'dt:dt' ;}
-    if (@order_ok) { $this->{PARSING}{p}{'/order'} = \@order_ok ;}
-    else { delete $this->{PARSING}{p}{'/order'} ;}
+    if ( $this->{PARSING}{p}{'/order'} ) {
+      my @order = @{$this->{PARSING}{p}{'/order'}} ;
+      my @order_ok ;
+      foreach my $order_i ( @order ) { push(@order_ok , $order_i) if $order_i ne 'dt:dt' ;}
+      if (@order_ok) { $this->{PARSING}{p}{'/order'} = \@order_ok ;}
+      else { delete $this->{PARSING}{p}{'/order'} ;}
+    }
   }
   elsif ($this->{NOENTITY}) { &XML::Smart::Data::_parse_basic_entity($content) ;}
   
-  $this->{PARSING}{p}{CONTENT} .= $content ;
-  push(@{$this->{content_ref}} , $this->{PARSING}{p} ) ;
+  if ( !exists $this->{PARSING}{p}{CONTENT} ) {
+    $this->{PARSING}{p}{CONTENT} = $content ;
+    push(@{$this->{PARSING}{p}{'/order'}} , 'CONTENT') ;
+  }
+  else {
+    if ( !tied $this->{PARSING}{p}{CONTENT} ) {
+      my $cont = $this->{PARSING}{p}{CONTENT} ;
+      $this->{PARSING}{p}{CONTENT} = '' ;
+      my $tied = tie( $this->{PARSING}{p}{CONTENT} => 'XML::Smart::TieScalar' , $this->{PARSING}{p}) ;
+      push(@{$this->{TIED_CONTENTS}} , $tied) ;
+      
+      $this->{PARSING}{p}{'/.CONTENT/x'} = 0 ;
+      $this->{PARSING}{p}{"/.CONTENT/0"} = $cont ;
+      
+      splice( @{$this->{PARSING}{p}{'/order'}} , -1,0, "/.CONTENT/0") ; # Add inside (0=init line , 1=end line).
+      
+      push( @{$this->{PARSING}{p}{'/order'}} , "/.CONTENT/0") ;
+    }
+
+    my $x = ++$this->{PARSING}{p}{'/.CONTENT/x'} ;
+    $this->{PARSING}{p}{"/.CONTENT/$x"} = $content ;
+    push( @{$this->{PARSING}{p}{'/order'}} , "/.CONTENT/$x") ;
+  }
+  
+  if ( $this->{SMART}{on_char} ) {
+    my $sub = $this->{SMART}{on_char} ;
+    &$sub($this->{PARSING}{p}{'/tag'} , $this->{PARSING}{p} , $this->{PARSING}{p}{'/back'} , \$this->{PARSING}{p}{CONTENT}) ;
+  }
+  
+  return ;
 }
 
 ########
 # _END #
 ########
 
-sub _End { #print "END>> @_[1]\n" ;
+sub _End { ##print "END>> @_[1] >> $_[0]->{PARSING}{p}{'/tag'}\n" ;
   my $this = shift ;
   my $tag = shift ;
   
@@ -339,12 +414,24 @@ sub _End { #print "END>> @_[1]\n" ;
   
   my $nkeys = keys %{$this->{PARSING}{p}} ;
   
-  if ( $nkeys == 1 && defined $this->{PARSING}{p}{CONTENT} ) {
+  if ( $nkeys == 1 && exists $this->{PARSING}{p}{CONTENT} ) {
     if (ref($back->{$tag}) eq 'ARRAY') { $back->{$tag}[$i] = $this->{PARSING}{p}{CONTENT} ;}
     else { $back->{$tag} = $this->{PARSING}{p}{CONTENT} ;}
   }
   
+  if ( $this->{PARSING}{p}{'/nodes'} && !%{$this->{PARSING}{p}{'/nodes'}} ) { delete $this->{PARSING}{p}{'/nodes'} ;}
+  if ( $this->{PARSING}{p}{'/order'} && $#{$this->{PARSING}{p}{'/order'}} <= 0 ) { delete $this->{PARSING}{p}{'/order'} ;}
+  
+  delete $this->{PARSING}{p}{'/.CONTENT/x'} ;
+  
+  if ( $this->{SMART}{on_end} ) {
+    my $sub = $this->{SMART}{on_end} ;
+    &$sub($tag , $this->{PARSING}{p} , $back) ;
+  }
+
   $this->{PARSING}{p} = $back ;
+  
+  return ;
 }
 
 ##########
@@ -355,16 +442,11 @@ sub _Final {
   my $this = shift ;
   my $tree = $this->{PARSING}{tree} ;
   
-  foreach my $hash ( @{$this->{content_ref}} ) {
-    if ( $$hash{CONTENT} !~ /\S/s ) {
-      delete $$hash{CONTENT} ;
-      
-      my @order = @{$$hash{'/order'}} ;
-      my @order_ok ;
-      foreach my $order_i ( @order ) { push(@order_ok , $order_i) if $order_i ne 'CONTENT' ;}
-      $$hash{'/order'} = \@order_ok ;
-    }
+  foreach my $tied_cont ( @{$this->{TIED_CONTENTS}} ) {
+    $tied_cont->_cache_keys ;
   }
+  
+  delete $this->{TIED_CONTENTS} ;
   
   delete($this->{PARSING}) ;
   return($tree) ;

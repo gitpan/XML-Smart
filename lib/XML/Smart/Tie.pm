@@ -243,6 +243,7 @@ sub DELETE {
   }
   elsif ($i == 0 && exists $this->{saver}->{back}{$key}) {
     my $k = $this->{saver}->{back}{$key} ;
+    delete $this->{saver}->{back}{'/nodes'}{$k} if defined $this->{saver}->{back}{'/nodes'} ;
     delete $this->{saver}->{back}{$key} ;
     return $k  ;
   }
@@ -529,6 +530,19 @@ sub DELETE   {
   if ( exists $this->{saver}->{point}{$key} ) {
     &XML::Smart::Tie::_delete_XPATH($this->{saver}) ;
     $this->{saver}->{keyorder} = undef ;
+    
+    if ( defined $this->{saver}->{point}{'/order'} ) {
+      my (@order_ok , $set) ;
+      
+      foreach my $order_i ( @{ $this->{saver}->{point}{'/order'} } ) {
+        if ($order_i eq $key) { $set = 1 ;}
+        else { push(@order_ok , $order_i) ;}
+      }
+      
+      @{ $this->{saver}->{point}{'/order'} } = @order_ok if $set ;
+    }
+    
+    delete $this->{saver}->{point}{'/nodes'}{$key} if defined $this->{saver}->{point}{'/nodes'}{$key} ;
     return delete $this->{saver}->{point}{$key} ;
   }
   
@@ -574,6 +588,96 @@ sub _keyorder {
   }
 
   $this->{saver}->{keyorder} = \@order ;
+}
+
+#########################
+# XML::SMART::TIESCALAR #
+#########################
+
+package XML::Smart::TieScalar ;
+
+sub TIESCALAR {
+  my $class = shift ;
+  my $this = bless( { p => $_[0] } , __PACKAGE__ ) ;
+  return $this ;
+}
+
+sub FETCH {
+  my $this = shift ;
+  my $wantarray = shift ;
+  
+  my ($data , @data) ;
+  foreach my $k_i ( $this->_get_content_keys ) {
+    if ( $wantarray ) { push(@data , $this->{p}{$k_i}) ;}
+    else { $data .= $this->{p}{$k_i} ;}
+  }
+  
+  return @data if $wantarray ;
+  return $data ;
+}
+
+sub STORE {
+  my $this = shift ;
+  my $i = shift if $#_ > 0 ;
+  
+  if ( $i =~ /^\d+$/ ) {
+    my $set ;
+    foreach my $k_i ( $this->_get_content_keys ) {
+      if ( $k_i =~ /^\/\.CONTENT\/$i$/ ) {
+        $this->{p}{$k_i} = $_[0] ;
+        $set = 1 ;
+        last ;
+      }
+    }
+    
+    if ( !$set ) {
+      $this->{p}{"/.CONTENT/$i"} = $_[0] ;
+      push( @{$this->{p}{'/order'}} , "/.CONTENT/$i") ;
+      $this->_cache_keys ;
+    }
+    
+    return $this->{p}{CONTENT} ;
+  }
+  
+  untie $this->{p}{CONTENT} ;
+
+  foreach my $k_i ( $this->_get_content_keys ) {
+    delete $this->{p}{$k_i} ;
+  }
+  
+  if ( $this->{p}{'/order'} ) {
+    my @order = @{$this->{p}{'/order'}} ;
+    my @order_ok ;
+    foreach my $order_i ( @order ) { push(@order_ok , $order_i) if $order_i !~ /^\/\.CONTENT\/\d+$/ ;}
+    if (@order_ok) { $this->{p}{'/order'} = \@order_ok ;}
+    else { delete $this->{p}{'/order'} ;}
+  }
+
+  $this->{p}{CONTENT} = $_[0] ;
+}
+
+sub UNTIE {}
+sub DESTROY {}
+
+sub _cache_keys {
+  my $this = shift ;
+  delete $this->{K} ;
+  my @keys = $this->_get_content_keys ;
+  $this->{K} = \@keys ;
+}
+
+sub _get_content_keys {
+  my $this = shift ;
+  return @{$this->{K}} if $this->{K} ;
+  
+  my %keys ;
+  foreach my $Key ( keys %{ $this->{p} } ) {
+    if ( $Key =~ /^\/\.CONTENT\/(\d+)$/ ) { $keys{$1} = $Key ;}
+  }
+  
+  my @keys = map { $keys{$_} } sort { $a <=> $b } keys %keys ;
+
+  return @keys ;
 }
 
 #######

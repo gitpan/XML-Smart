@@ -100,7 +100,9 @@ sub regexp {
   "(?:($TextSE)(?{${package}::char(\$1)}))$patch|$MarkupSPE";
 }
 
-sub compile { local $^W; 
+sub compile {
+  local $^W; 
+  
   foreach (regexp(), regexp('??')) {
     eval qq{sub parse_re { use re "eval"; 1 while \$_[0] =~ m{$_}go }; 1} or die;
     last if eval { parse_re('<foo>bar</foo>'); 1 }
@@ -159,6 +161,7 @@ sub char {
     die "junk '$_[0]' @{[$level ? 'after' : 'before']} XML element\n"
       if index("\n\r\t ", substr($_[0],$i,1)) < 0; # or should '< $[' be there
   }
+  return ;
 }
 
 sub char_CDATA {

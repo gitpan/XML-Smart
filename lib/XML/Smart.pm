@@ -25,7 +25,15 @@ use XML::Smart::Data qw(data) ;
 use XML::Smart::XPath qw(xpath XPath xpath_pointer XPath_pointer) ;
 
 our ($VERSION) ;
-$VERSION = '1.4.1' ;
+$VERSION = '1.5' ;
+
+#################
+# NO_XML_PARSER #
+#################
+
+sub NO_XML_PARSER {
+  $XML::Smart::Tree::NO_XML_PARSER = !@_ ? 1 : ( $_[0] ? 1 : undef ) ;
+}
 
 #######
 # NEW #
@@ -176,6 +184,8 @@ sub base {
   code      => \&find_arg , 
   ) ;
   
+  bless($base,__PACKAGE__) ;
+  
   $$base->{tree} = $this->tree ;
   $$base->{point} = $$base->{tree} ;
   
@@ -255,6 +265,18 @@ sub path_as_xpath {
   }
 
   return $path ;
+}
+
+########
+# ROOT #
+########
+
+sub root {
+  my $this = shift ;
+  
+  my $root = ( $this->base->nodes_keys )[0] ;
+
+  return $root ;
 }
 
 #######
@@ -351,6 +373,7 @@ sub _copy_hash {
 ########
 
 sub tree { return( ${$_[0]}->{tree} ) ;}
+sub tree_pointer { &pointer ;}
 
 ###########
 # POINTER #
@@ -368,9 +391,11 @@ sub pointer {
 sub cut_root {
   my $this = shift ;
 
-  if (keys %{$this} > 1) { return $this ;}
+  my @nodes = $this->nodes_keys ;
+
+  if ($#nodes > 0) { return $this ;}
   
-  my $root = (keys %{$this})[0] ;
+  my $root = @nodes[0] ;
   return( $this->{$root} ) ;
 }
 
@@ -704,8 +729,10 @@ sub find_arg {
 
 sub content {
   my $this = shift ;
+  my $set_i = shift if $#_ > 0 ;
   
   if ( defined $$this->{content} ) {
+    if (@_) { ${$$this->{content}} = $_[0] ;}
     return ${$$this->{content}} ;
   }
   
@@ -716,9 +743,12 @@ sub content {
   
   if (ref($$this->{point}{$key}) eq 'ARRAY') {
     if ($i eq '') { $i = 0 ;}
+    if (@_) { $$this->{point}{$key}[$i] = $_[0] ;}
     return $$this->{point}{$key}[$i] ;
   }
-  elsif (defined $$this->{point}{$key}) {
+  elsif (exists $$this->{point}{$key}) {
+    if (@_ && ( my $tie = tied($$this->{point}{$key}) )) { $tie->STORE($set_i , $_[0]) ;}
+    if ( wantarray && ( my $tie = tied($$this->{point}{$key}) ) ) { return $tie->FETCH(1) ;}
     return $$this->{point}{$key} ;
   }
   
@@ -963,11 +993,42 @@ Make the tags uper case.
 
 Make the arguments uper case.
 
+=item on_start (CODE) I<*optional>
+
+Code/sub to call on start a tag.
+
+I<** This will be called after XML::Smart parse the tag, should be used only if you want to change the tree.>
+
+=item on_char (CODE) I<*optional>
+
+Code/sub to call on content.
+
+I<** This will be called after XML::Smart parse the tag, should be used only if you want to change the tree.>
+
+=item on_end (CODE) I<*optional>
+
+Code/sub to call on end a tag.
+
+I<** This will be called after XML::Smart parse the tag, should be used only if you want to change the tree.>
+
 =back
 
 I<** This options are applied when the XML data is loaded. For XML generation see data() OPTIONS.>
 
 =back
+
+Example of use:
+
+  my $xml = XML::Smart->new($data , 'html' ,
+  lowtag => 1 ,
+  lowarg => 1 ,
+  on_char => sub {
+               my ( $tag , $pointer , $pointer_back , $cont) = @_ ;
+               $pointer->{extra_arg} = 123 ; ## add an extrar argument.
+               $pointer_back->{$tag}{extra_arg} = 123 ; ## Same, but using the previous pointer.
+               $$cont .= "\n" ; ## append data to the content.
+             }
+  ) ;
 
 =head2  args()
 
@@ -1010,6 +1071,58 @@ Return the content of a node:
   
   ## or just:
   my $content = $XML->{foo} ;
+
+B<Also can be used with multiple contents:>
+
+For this XML data:
+
+  <root>
+  content0
+  <tag1 arg="1"/>
+  content1
+  </root>
+
+Getting all the content:
+
+  my $all_content = $XML->{root}->content ;
+  print "[$all_content]\n" ;
+
+Output:
+
+  [
+  content0
+  
+  content1
+  ]
+
+Getting in parts:
+
+  my @contents = $XML->{root}->content ;
+  print "[@contents[0]]\n" ;
+  print "[@contents[1]]\n" ;
+
+Output
+
+  [
+  content0
+  ]
+  [
+  content1
+  ]
+
+B<Setting multiple contents:>
+
+  $XML->{root}->content(0,"aaaaa") ;
+  $XML->{root}->content(1,"bbbbb") ;
+
+Output now will be:
+
+  [aaaaa]
+  [bbbbb]
+
+And now the XML data generated will be:
+
+  <root>aaaaa<tag1 arg="1"/>bbbbb</root>
 
 =head2  copy()
 
@@ -1187,6 +1300,12 @@ Return the path of the pointer in the XPath format.
 
 Return the HASH tree from the pointer.
 
+=head2 root
+
+Return the ROOT name of the XML tree (main key).
+
+** See also I<key()> for sub nodes.
+
 =head2 save (FILEPATH , OPTIONS)
 
 Save the XML data inside a file.
@@ -1213,6 +1332,10 @@ Return the HASH tree of the XML data.
 
 ** Note that the real HASH tree is returned here. All the other ways return an
 object that works like a HASH/ARRAY through tie.
+
+=head2  tree_pointer()
+
+Same as I<pointer()>.
 
 =head2  xpath() || XPath()
 

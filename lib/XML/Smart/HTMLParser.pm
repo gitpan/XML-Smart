@@ -65,6 +65,8 @@ sub parse {
   
   $data =~ s/\r\n?/\n/gs ;
   
+  $data =~ s/^\s*<\?xml.*?>//gsi ;
+  
   my @parsed ;
   
   while( $data =~ /(.*?)<(.*?)>/gsi ) {

@@ -3,7 +3,7 @@
 ###use Data::Dumper ; print Dumper( $XML->tree ) ;
 
 use Test;
-BEGIN { plan tests => 84 } ;
+BEGIN { plan tests => 96 } ;
 use XML::Smart ;
 
 no warnings ;
@@ -22,7 +22,89 @@ my $DATA = q`<?xml version="1.0" encoding="iso-8859-1"?>
     <server address="192.168.3.30" os="bsd" type="freebsd" version="9.0"/>
 </hosts>
 `;
+#########################
+{
 
+  my $XML = XML::Smart->new(q`
+<root>
+content0
+<tag1 arg1="123">
+  <sub arg="1">sub_content</sub>
+</tag1>
+content1
+<tag2 arg1="123"/>
+content2
+</root>
+  ` , 'XML::Smart::Parser') ;
+  
+  my $data = $XML->data(noheader => 1) ;
+  
+  ok($data , q`<root>
+content0
+<tag1 arg1="123">
+    <sub arg="1">sub_content</sub></tag1>
+content1
+<tag2 arg1="123"/>
+content2
+</root>
+
+`) ;
+  
+  ok( tied $XML->{root}->pointer->{CONTENT} ) ;
+  
+  my $cont = $XML->{root}->{CONTENT} ;
+  
+  ok($cont , q`
+content0
+
+content1
+
+content2
+`) ;
+  
+  my $cont_ = $XML->{root}->content ;
+
+  ok($cont_ , q`
+content0
+
+content1
+
+content2
+`) ;
+  
+  $XML->{root}->content(1,"set1") ;
+  
+  my @cont = $XML->{root}->content ;
+  
+  ok($cont[0] , "\ncontent0\n") ;
+  ok($cont[1] , "set1") ;
+  ok($cont[2] , "\ncontent2\n") ;
+  
+  $XML->{root}->{CONTENT} = 123 ;
+  
+  my $cont_2 = $XML->{root}->content ;
+  
+  ok($cont_2 , 123) ;
+  
+  ok( !tied $XML->{root}->pointer->{CONTENT} ) ;
+  
+  ok( !tied $XML->{root}{tag1}{sub}->pointer->{CONTENT} ) ;
+  
+  my $sub_cont = $XML->{root}{tag1}{sub}->{CONTENT} ;
+  
+  ok($sub_cont , 'sub_content') ;
+  
+  my $data = $XML->data(noheader => 1) ;
+  
+  ok($data , q`<root>
+  <tag1 arg1="123">
+    <sub arg="1">sub_content</sub>
+  </tag1>
+  <tag2 arg1="123"/>123</root>
+
+`) ;
+  
+}
 #########################
 {
 

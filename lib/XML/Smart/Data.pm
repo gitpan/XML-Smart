@@ -194,8 +194,9 @@ sub _data {
   
   my $ident = "\n" ;
   $ident .= '  ' x $level if !$stat[0] ;
-  
+
   if ($stat[1]) { $ident = '' ;}
+  $stat[1] -= 2 if $stat[1] > 1 ;
   
   my $tag_org = $tag ;
   $tag = $stat[4] ? $tag : &_check_tag($tag) ;
@@ -203,7 +204,7 @@ sub _data {
   elsif ($stat[2] == 2) { $tag = "\U$tag\E" ;}
 
   if (ref($tree) eq 'HASH') {
-    my ($args,$args_end,$tags,$cont) ;
+    my ($args,$args_end,$tags,$cont,$stat_1) ;
     
     my @all_keys ;
     
@@ -223,6 +224,7 @@ sub _data {
     #if ( (defined $$tree{CONTENT} && $$tree{CONTENT} ne '') || (defined $$tree{content} && $$tree{content} ne '')) { $stat[0] = 1 ; $ident = '' ;}
     
     foreach my $Key ( @all_keys ) {
+      #print "**>> $Key [$ident]\n" ;
       if ($Key eq '' || $Key eq '/order' || $Key eq '/nodes') { next ;}
       if (ref($$tree{$Key})) {
         my $k = $$tree{$Key} ;
@@ -233,7 +235,14 @@ sub _data {
         my $k = [$$tree{$Key}] ;
         $args .= &_data(\$tags,$k,$Key, $level+1 , $tree , $parsed , @stat) ;
       }
-      elsif ("\L$Key\E" eq 'content') { $cont .= $$tree{$Key} ;}
+      elsif ("\L$Key\E" eq 'content') {
+        if ( tied($$tree{$Key}) && $$tree{$Key} =~ /\S/s ) {
+          $ident = '' ; $stat[1] += 2 ;
+        }
+        next if tied($$tree{$Key}) ;
+        $cont .= $$tree{$Key} ;
+      }
+      elsif ($Key =~ /^\/\.CONTENT\/\d+$/) { $tags .= $$tree{$Key} ;}
       elsif ( $Key eq '!--' && (!ref($$tree{$Key}) || ( ref($$tree{$Key}) eq 'HASH' && keys %{$$tree{$Key}} == 1 && (defined $$tree{$Key}{CONTENT} || defined $$tree{$Key}{content}) ) ) ) {
         my $ct = $$tree{$Key} ;
         if (ref $$tree{$Key}) { $ct = defined $$tree{$Key}{CONTENT} ? $$tree{$Key}{CONTENT} : $$tree{$Key}{content} ;} ;

@@ -1,5 +1,16 @@
 Revision history for Perl extension XML::Smart.
 
+1.5 2004-01-15
+    - Added method aliase tree_pointer().
+    - Added method root().
+    - Added event handlers: on_start, on_char, on_end.
+    - Multiple contents handled in different way. $xml->{CONTENT} is tied
+      and the data will be at $xml->{'./CONTENT/0} , $xml->{'./CONTENT/1} , $xml->{'./CONTENT/2}...
+    - data() will keep the multiple contents order.
+    - content(i , data) can be used to set a content part.
+    - $srt = content() returns all the multiple contents grouped.
+
+
 1.4.1 25/10/2003
     - Fixed set_node(). Not full implemented on previous version! sorry.
     - Fixed openned tags for XML::Smart::HTMLParser. Now closing near the open tag.
