@@ -13,6 +13,8 @@
 package XML::Smart ;
 use 5.006 ;
 
+no warnings ;
+
 use Object::MultiType ;
 use vars qw(@ISA) ;
 @ISA = qw(Object::MultiType) ;
@@ -20,7 +22,7 @@ use vars qw(@ISA) ;
 use XML::Smart::Tree ;
 
 our ($VERSION) ;
-$VERSION = '1.0' ;
+$VERSION = '1.1' ;
 
 #######
 # NEW #
@@ -161,20 +163,21 @@ sub find_arg {
   else { push(@hashes , $$this->{point}) ;}
 
   my $i = -1 ;
-  my @hash ;
+  my (@hash , @i) ;
   my $notwant = !wantarray ;
 
   foreach my $hash_i ( @hashes ) {
     $i++ ;
-    if    ($type eq 'eq'  && $$hash_i{$name} eq $value)     { push(@hash,$hash_i) ; last if $notwant ;}
-    elsif ($type eq 'ne'  && $$hash_i{$name} ne $value)     { push(@hash,$hash_i) ; last if $notwant ;}
-    elsif ($type eq '=='  && $$hash_i{$name} == $value)     { push(@hash,$hash_i) ; last if $notwant ;}
-    elsif ($type eq '<='  && $$hash_i{$name} <= $value)     { push(@hash,$hash_i) ; last if $notwant ;}
-    elsif ($type eq '>='  && $$hash_i{$name} >= $value)     { push(@hash,$hash_i) ; last if $notwant ;}
-    elsif ($type eq '<'   && $$hash_i{$name} <  $value)     { push(@hash,$hash_i) ; last if $notwant ;}
-    elsif ($type eq '>'   && $$hash_i{$name} >  $value)     { push(@hash,$hash_i) ; last if $notwant ;}
-    elsif ($type eq '=~'  && $$hash_i{$name} =~ /$value/s)  { push(@hash,$hash_i) ; last if $notwant ;}
-    elsif ($type eq '=~i' && $$hash_i{$name} =~ /$value/i)  { push(@hash,$hash_i) ; last if $notwant ;}
+    if    ($type eq 'eq'  && $$hash_i{$name} eq $value)     { push(@hash,$hash_i) ; push(@i,$i) ; last if $notwant ;}
+    elsif ($type eq 'ne'  && $$hash_i{$name} ne $value)     { push(@hash,$hash_i) ; push(@i,$i) ; last if $notwant ;}
+    elsif ($type eq '=='  && $$hash_i{$name} == $value)     { push(@hash,$hash_i) ; push(@i,$i) ; last if $notwant ;}
+    elsif ($type eq '!='  && $$hash_i{$name} != $value)     { push(@hash,$hash_i) ; push(@i,$i) ; last if $notwant ;}
+    elsif ($type eq '<='  && $$hash_i{$name} <= $value)     { push(@hash,$hash_i) ; push(@i,$i) ; last if $notwant ;}
+    elsif ($type eq '>='  && $$hash_i{$name} >= $value)     { push(@hash,$hash_i) ; push(@i,$i) ; last if $notwant ;}
+    elsif ($type eq '<'   && $$hash_i{$name} <  $value)     { push(@hash,$hash_i) ; push(@i,$i) ; last if $notwant ;}
+    elsif ($type eq '>'   && $$hash_i{$name} >  $value)     { push(@hash,$hash_i) ; push(@i,$i) ; last if $notwant ;}
+    elsif ($type eq '=~'  && $$hash_i{$name} =~ /$value/s)  { push(@hash,$hash_i) ; push(@i,$i) ; last if $notwant ;}
+    elsif ($type eq '=~i' && $$hash_i{$name} =~ /$value/i)  { push(@hash,$hash_i) ; push(@i,$i) ; last if $notwant ;}
   }
                            
   my $back = $$this->{back} ;
@@ -183,11 +186,13 @@ sub find_arg {
   
   if (@hash) {
     if ($notwant) {
-      return &XML::Smart::clone($this,$hash[0],$back,undef,undef,$i) ;
+      return &XML::Smart::clone($this,$hash[0],$back,undef,undef, $i[0]) ;
     }
     else {
+      my $c = -1 ;
       foreach my $hash_i ( @hash ) {
-        $hash_i = &XML::Smart::clone($this,$hash_i,$back,undef,undef,$i) ;
+        $c++ ;
+        $hash_i = &XML::Smart::clone($this,$hash_i,$back,undef,undef,$c) ;
       }
       return( @hash ) ;
     }
@@ -343,12 +348,12 @@ sub _data {
   $$parsed{"$tree"}++ ;
   
   my $ident = "\n" ;
-  $ident .= '  ' x $level if !@stat[0] ;
+  $ident .= '  ' x $level if !$stat[0] ;
   
-  if (@stat[1]) { $ident = '' ;}
+  if ($stat[1]) { $ident = '' ;}
   
-  if    (@stat[2] == 1) { $tag = "\L$tag\E" ;}
-  elsif (@stat[2] == 2) { $tag = "\U$tag\E" ;}  
+  if    ($stat[2] == 1) { $tag = "\L$tag\E" ;}
+  elsif ($stat[2] == 2) { $tag = "\U$tag\E" ;}  
   
   if (ref($tree) eq 'HASH') {
     my ($args,$tags,$cont) ;
@@ -356,7 +361,7 @@ sub _data {
     if (defined $$tree{CONTENT}) { $cont = delete $$tree{CONTENT} ;}
     if (defined $$tree{content}) { $cont .= delete $$tree{content} ;}
     
-    if ($cont ne '') { @stat[0] = 1 ; $ident = '' ;}
+    if ($cont ne '') { $stat[0] = 1 ; $ident = '' ;}
     
     foreach my $Key (sort keys %$tree ) {
       if ($Key eq '') { next ;}
@@ -368,14 +373,14 @@ sub _data {
         my $tp = _data_type($$tree{$Key}) ;
         if    ($tp == 1) {
           my $k = $Key ;
-          if    (@stat[3] == 1) { $k = "\L$Key\E" ;}
-          elsif (@stat[3] == 2) { $k = "\U$Key\E" ;}
+          if    ($stat[3] == 1) { $k = "\L$Key\E" ;}
+          elsif ($stat[3] == 2) { $k = "\U$Key\E" ;}
           $args .= qq` $k="$$tree{$Key}"` ;
         }
         elsif ($tp == 2) {
           my $k = $Key ;
-          if    (@stat[2] == 1) { $k = "\L$Key\E" ;}
-          elsif (@stat[2] == 2) { $k = "\U$Key\E" ;}
+          if    ($stat[2] == 1) { $k = "\L$Key\E" ;}
+          elsif ($stat[2] == 2) { $k = "\U$Key\E" ;}
           $tags .= qq`$ident <$k>$$tree{$Key}</$k>`;
         }
       }
@@ -421,8 +426,8 @@ sub _data {
       }
     }
     if ($c <= 1) {
-      if    (@stat[3] == 1) { $tag = "\L$tag\E" ;}
-      elsif (@stat[3] == 2) { $tag = "\U$tag\E" ;}
+      if    ($stat[3] == 1) { $tag = "\L$tag\E" ;}
+      elsif ($stat[3] == 2) { $tag = "\U$tag\E" ;}
       delete $$parsed{"$tree"} ;
       return qq` $tag="$v"` ;
     }
@@ -1147,7 +1152,7 @@ key. So this actually returns another object, pointhing (inside it) to the key:
   $XML->save('newfile.xml') ;
   
   ## Send through a socket:
-  print $socket $XML->data(legnth => 1) ; ## show the 'length' in the XML header to the
+  print $socket $XML->data(length => 1) ; ## show the 'length' in the XML header to the
                                           ## socket know the amount of data to read.
   
   __DATA__
@@ -1277,7 +1282,7 @@ To access the data you use the object in a way similar to HASH and ARRAY:
   my $server = $XML->{server} ;
 
 But when you get a key {server}, you are actually accessing the data through tie(),
-not directly to the HASH tree inside the object. This will fix wrong accesses:
+not directly to the HASH tree inside the object, (This will fix wrong accesses): 
 
   ## {server} is a normal key, not an ARRAY ref:
 
@@ -1290,6 +1295,52 @@ not directly to the HASH tree inside the object. This will fix wrong accesses:
   my $server = $XML->{server}[0] ; ## return $XML->{server}[0]
   my $server = $XML->{server}[1] ; ## return $XML->{server}[1]
 
+To get all the values of a multiple attribute:
+
+  ## This work having only a string inside {address}, or with an ARRAY ref:
+  my @addrsses = @{$XML->{server}{address}} ;
+
+=head2 Select search
+
+When you don't know the position of the nodes, you can select it by some attribute value:
+
+  my $server = $XML->{server}('type','eq','suse') ; ## return $XML->{server}[1]
+
+Syntax for the select search:
+
+  (NAME, CONDITION , VALUE)
+
+
+=over 10
+
+=item NAME
+
+The attribute name in the node (tag).
+
+=item CONDITION
+
+Can be
+
+  eq  ne  ==  !=  <=  >=  <  >
+
+For REGEX:
+
+  =~  !~
+  
+  ## Case insensitive:
+  =~i !~i
+
+=item VALUE
+
+The value.
+
+For REGEX use like this:
+
+  $XML->{server}('type','=~','^s\w+$') ;
+
+=back
+
+=head2 CONTENT
 
 But if {server} has a content you can access it directly from the variable or
 from the method:
@@ -1299,11 +1350,6 @@ from the method:
   print "Content: ". $server->content ."\n" ;
 
 So, if you use the object as a string it works as a string! ;-P
-
-To get all the values of a multiple attribute:
-
-  ## This work having only a string inside {address}, or with an ARRAY ref:
-  my @addrsses = @{$XML->{server}{address}} ;
 
 =head1 CREATE XML DATA
 

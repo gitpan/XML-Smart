@@ -4,6 +4,8 @@ use Test;
 BEGIN { plan tests => 35 } ;
 use XML::Smart ;
 
+no warnings ;
+
 my $DATA = q`<?xml version="1.0" encoding="iso-8859-1"?>
 <hosts>
     <server os="linux" type="redhat" version="8.0">

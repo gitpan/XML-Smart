@@ -11,7 +11,8 @@
 #############################################################################
 
 package XML::Smart::Tree ;
-use Carp ;
+
+no warnings ;
 
 our ($VERSION) ;
 $VERSION = '1.0' ;
