@@ -225,7 +225,7 @@ sub STORE {
   
   if ($this->{saver}->{array}) {
     if ( !exists $this->{saver}->{array}[$i] && $key !~ /^\/\.CONTENT/ ) {
-      push( @{$this->{saver}->{back}->{'/order'}} ) ;
+      push( @{$this->{saver}->{back}->{'/order'}} , $key ) ;
     }
     return $this->{saver}->{array}[$i] = $_[0] ;
   }

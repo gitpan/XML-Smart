@@ -23,7 +23,7 @@ use XML::Smart::Tie ;
 use XML::Smart::Tree ;
 
 our ($VERSION) ;
-$VERSION = '1.6.7' ;
+$VERSION = '1.6.8' ;
 
 ###############
 # AUTOLOADERS #
@@ -330,7 +330,7 @@ sub key {
 
 sub i {
   my $this = shift ;
-  my $i = $$this->{i} || undef ;
+  my $i = $$this->{i} ;
   return $i ;
 }
 
@@ -997,6 +997,12 @@ sub content {
   my $this = shift ;
   my $set_i = $#_ > 0 ? shift : undef ;
   
+  if ( $this->null ) {
+    &XML::Smart::Tie::_generate_nulltree( $$this ) ;
+  }
+  
+  ##use Data::Dumper; print Dumper($$this) ;
+  
   if ( defined $$this->{content} ) {
     if (@_) { ${$$this->{content}} = $_[0] ;}
     return ${$$this->{content}} ;
@@ -1006,10 +1012,15 @@ sub content {
   my $i = $$this->{i} ;
   
   if (ref($$this->{point}) eq 'ARRAY') {
-    return $this->[0]->content ;
+    return $this->[0]->content($set_i,@_) ;
   }
   
   if ( ref($$this->{point}) ne 'HASH' ) { return '' ;}
+  
+  if ( !exists $$this->{point}{$key} ) {
+    if ( @_ ) { return $$this->{point}{$key} = $_[0] ;}
+    return '' ;
+  }
   
   if (ref($$this->{point}{$key}) eq 'ARRAY') {
     if ($i eq '') { $i = 0 ;}
@@ -1017,7 +1028,10 @@ sub content {
     return $$this->{point}{$key}[$i] ;
   }
   elsif (exists $$this->{point}{$key}) {
-    if (@_ && ( my $tie = tied($$this->{point}{$key}) ) ) { $tie->STORE($set_i , $_[0]) ;}
+    if ( @_ ) {
+      if ( my $tie = tied($$this->{point}{$key}) ) { $tie->STORE($set_i , $_[0]) ;}
+      else { $$this->{point}{$key} = $_[0] ;}
+    }
     if ( wantarray && ( my $tie = tied($$this->{point}{$key}) ) ) { return $tie->FETCH(1) ;}
     return $$this->{point}{$key} ;
   }

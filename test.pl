@@ -7,7 +7,7 @@ use ExtUtils::MakeMaker qw(prompt) ;
 use strict qw(vars) ;
 
 use Test;
-BEGIN { plan tests => 158 } ;
+BEGIN { plan tests => 162 } ;
 use XML::Smart ;
 
 no warnings ;
@@ -148,6 +148,35 @@ content2
 
 `) ;
   
+}
+#########################
+{
+  
+  my $xml = new XML::Smart(q`<?xml version="1.0" encoding="iso-8859-1" ?>
+<root>
+  <phone>aaa</phone>
+  <phone>bbb</phone>
+</root>
+`) ;
+
+  $xml = $xml->{root} ;
+
+  $xml->{phone}->content('XXX') ;
+  
+  $xml->{phone}[1]->content('YYY') ;
+
+  $xml->{test}->content('ZZZ') ;
+
+  my $data = $xml->data(noheader => 1) ;
+
+  ok($data , q`<root>
+  <phone>XXX</phone>
+  <phone>YYY</phone>
+  <test>ZZZ</test>
+</root>
+
+`) ;  
+
 }
 #########################
 {
@@ -1011,6 +1040,32 @@ TEXT1 &amp; more
 }
 #########################
 {
+  
+  my $xml = new XML::Smart(q`<?xml version="1.0" encoding="UTF-8"?>
+<doc type="test">
+  <data>test 1</data>
+  <data>test 2</data>
+  <data>test 3</data>
+  <file>file 1</file>
+</doc>
+  `);
+
+  $xml->{doc}{port}[0] = 0;
+  $xml->{doc}{port}[1] = 1;
+  $xml->{doc}{port}[2] = 2;
+  $xml->{doc}{port}[3] = 3;
+  
+  my $data = $xml->data(nospace => 1 , noheader => 1 ) ;
+  ok($data , q`<doc type="test"><data>test 1</data><data>test 2</data><data>test 3</data><file>file 1</file><port>0</port><port>1</port><port>2</port><port>3</port></doc>`) ;
+  
+  pop @{$xml->{doc}{'/order'}} ;
+
+  $data = $xml->data(nospace => 1 , noheader => 1 ) ;
+  ok($data , q`<doc type="test"><data>test 1</data><data>test 2</data><data>test 3</data><file>file 1</file><port>0</port><port>1</port><port>2</port><port>3</port></doc>`) ;
+
+}
+#########################
+{
   eval(q`use XML::XPath`) ;
   if ( !$@ ) {
     my $XML = XML::Smart->new($DATA , 'XML::Smart::Parser') ;
@@ -1088,7 +1143,7 @@ TEXT1 &amp; more
   ok( !$dtd->attr_exists('curso','centro','nomes') ) ;
   
   my @attrs = $dtd->get_attrs('curso') ;
-  ok( join(" ",@attrs) , 'age centro nome') ;
+  ok( join(" ",@attrs) , 'centro nome age') ;
   
   my @attrs = $dtd->get_attrs_req('curso') ;
   ok( join(" ",@attrs) , 'centro nome') ;
@@ -1166,6 +1221,26 @@ TEXT1 &amp; more
           type     (a|b|c) #REQUIRED "a"
 >
 ]><cds creator="Joe" date="2000-01-01" type="a"><album title="foo" type="a"><artist>the foos</artist><tracks>8</tracks><auto></auto></album><album title="bar" type="b"><artist>the barss</artist><tracks>6</tracks><tracks>7</tracks><time>60</time><auto></auto></album><album title="baz" type="a"><artist></artist><tracks>10</tracks><auto></auto><br/></album></cds>` );
+
+}
+#########################
+{
+  
+  my $xml = XML::Smart->new;
+  $xml->{customer}{phone} = "555-1234";
+  $xml->{customer}{phone}{type} = "home";
+  
+  $xml->apply_dtd(q`
+  <?xml version="1.0" ?>
+  <!DOCTYPE customer [
+  <!ELEMENT customer (type?,phone+)>
+  <!ELEMENT phone (#PCDATA)>
+  <!ATTLIST phone type CDATA #REQUIRED>
+  <!ELEMENT type (#PCDATA)>
+  ]>
+  `);
+  
+  ok( $xml->data(noheader=>1 , nospace=>1 , nodtd=>1) , q`<customer><phone type="home">555-1234</phone></customer>` );
 
 }
 #########################

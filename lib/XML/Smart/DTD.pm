@@ -368,9 +368,9 @@ sub get_childs_req {
 sub get_attrs {
   my $this = shift ;
   my ( $tag ) = @_ ;
-  return undef if !$this->{tree}{$tag} || !$this->{tree}{$tag}{attributes} ;
+  return undef if !$this->{tree}{$tag} || !$this->{tree}{$tag}{attr_order} ;
   
-  my @attrs = sort keys %{$this->{tree}{$tag}{attributes}} ;
+  my @attrs = @{$this->{tree}{$tag}{attr_order}} ;
   return @attrs ;
 }
 
@@ -503,6 +503,9 @@ sub ParseDTD {
       elsif ( $default =~ /^'(.*?)'$/ ) { $default = $1 ; $default =~ s/\\'/'/gs ;}
       
       $elements{$element}->{attributes}->{$name} = [$type,$option,$default,undef];
+      
+      push(@{$elements{$element}->{attr_order}} , $name) ;
+      
       if ($type =~ /^(?:NOTATION\s*)?\(\s*(.*?)\)$/) {
         $elements{$element}->{attributes}->{$name}->[3] = parse_values($1);
       }
@@ -757,7 +760,7 @@ sub _apply_dtd {
         }
         
         {
-          my @order = $dtd->get_childs($tag) ;
+          my @order = ($dtd->get_attrs($tag) , $dtd->get_childs($tag)) ;
           
           if ( ! $tree->{'/order'} ) { $tree->{'/order'} = \@order ;}
           else {
@@ -790,7 +793,7 @@ sub _apply_dtd {
     foreach my $Key ( keys %$tree ) {
       if ($Key eq '' || $Key eq '/order' || $Key eq '/nodes' || $Key eq 'CONTENT') { next ;}
       
-      if ( $dtd->elem_exists($Key) ) {
+      if ( ($tag eq '' && $dtd->elem_exists($Key)) || ($tag ne '' && $dtd->child_exists($tag , $Key)) ) {
         if ( $tree->{'/nodes'}{$Key} =~ /^(\w+,\d+),(\d*)/ ) { $tree->{'/nodes'}{$Key} = "$1,1" ;}
         else { $tree->{'/nodes'}{$Key} = 1 ;}
         

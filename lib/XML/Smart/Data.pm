@@ -321,8 +321,7 @@ sub _data {
     foreach my $Key ( keys %array_i ) {
       if ( $array_i{$Key} ne 'ok' && $#{ $$tree{$Key} } >= $array_i{$Key} ) {
         for my $i ( $array_i{$Key} .. $#{ $$tree{$Key} } ) {
-          my $k = $$tree{$Key}[$i] ;
-          $args .= &_data(\$tags,$k,$Key, $level+1 , $tree , $parsed , undef , undef , @stat) ;
+          $args .= &_data(\$tags, $$tree{$Key} ,$Key, $level+1 , $tree , $parsed , $i , $$tree{'/nodes'}{$Key} , @stat) ;
         }
       }
     }
@@ -396,13 +395,7 @@ sub _data {
   elsif (ref($tree) eq 'ARRAY') {
     my ($c,$v,$tags) ;
 
-    my $i = -1 ;
-    foreach my $value_i (@$tree) {
-      
-      if ( $ar_i ne '' ) {
-        ++$i ;
-        next if $i != $ar_i ;
-      }
+    foreach my $value_i ( ($ar_i ne '' ? $$tree[$ar_i] : @$tree) ) {
       
       my $value = $value_i ;
       if (ref $value_i eq 'XML::Smart') { $value = $$value_i->{point} ;}

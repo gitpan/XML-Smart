@@ -22,7 +22,7 @@ Note that for complex parsing L<XML::Parser> is recommended, but XML::Smart::Par
 
 =head2 What is the best version of XML::Smart to install?
 
-Is always the last! Alwasy take a look for new versions before aks for help on XML::Smart.
+Is always the last! Always take a look for new versions before aks for help on XML::Smart.
 
 Note that internally XML::Smart is complex, since the main idea of it is to remove the complexity from the hand of the programmer.
 Actually the idea is to enable the Perl programmer to use and create XML data without really know the XML format.

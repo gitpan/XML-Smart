@@ -1,6 +1,13 @@
 Revision history for Perl extension XML::Smart.
 
 
+1.6.8 2004-8-3
+    - Fixed minor bug for order of keys and new multiple elements.
+    - Fixed assigment of content with the method content() for new trees.
+    - Added order to the attributes when using apply_dtd().
+    - Fixed apply_dtd() when we have an ELEMENT and an ATTRIBUTE with the same name.
+
+
 1.6.7 2004-7-19
     - Fixed minor bug with internal flag {null}. use as a boolean, and not as defined {null} changed.
     - Fixed minor bug with data_pointer() and root element name.
