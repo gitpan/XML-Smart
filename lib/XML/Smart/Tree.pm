@@ -108,7 +108,6 @@ sub load {
 #########
 
 sub parse {
-  my $xml ;
   my $module = $_[1] ;
   
   my $data ;
@@ -133,11 +132,22 @@ sub parse {
     elsif ($PARSERS{XML_Smart_Parser}) { $module = 'XML_Smart_Parser' ;}
   }
   
+  my $xml ;
   if ($module eq 'XML_Parser') { $xml = XML::Parser->new() ;}
   elsif ($module eq 'XML_Smart_Parser') { $xml = XML::Smart::Parser->new() ;}
   elsif ($module eq 'XML_Smart_HTMLParser') { $xml = XML::Smart::HTMLParser->new() ;}
   else { croak("Can't find a parser for XML!") ;}
-    
+  
+  shift(@_) ;
+  if ( $_[0] =~ /^\s*(?:XML_\w+|html?|re\w+|smart)\s*$/i) { shift(@_) ;}
+
+  my ( %args ) = @_ ;
+  
+  if ( $args{lowtag} ) { $xml->{SMART}{tag} = 1 ;}
+  if ( $args{upertag} ) { $xml->{SMART}{tag} = 2 ;}
+  if ( $args{lowarg} ) { $xml->{SMART}{arg} = 1 ;}
+  if ( $args{uperarg} ) { $xml->{SMART}{arg} = 2 ;}
+  
   $xml->setHandlers(
   Init => \&_Init ,
   Start => \&_Start ,
@@ -206,9 +216,35 @@ sub _Init {
 sub _Start {
   my $this = shift ;
   my ($tag , %args) = @_ ;
+  
+  if    ( $this->{SMART}{tag} == 1 ) { $tag = lc($tag) ;}
+  elsif ( $this->{SMART}{tag} == 2 ) { $tag = uc($tag) ;}
+  
+  if ( $this->{SMART}{arg} ) {
+    my $type = $this->{SMART}{arg} ;
+    my %argsok ;
+    foreach my $Key ( keys %args ) {
+      my $k ;
+      if    ($type == 1) { $k = lc($Key) ;}
+      elsif ($type == 2) { $k = uc($Key) ;}
+      
+      if (exists $argsok{$k}) {
+        if ( ref $argsok{$k} ne 'ARRAY' ) {
+          my $key = $argsok{$k} ; 
+          $argsok{$k} = [$key] ;
+        }
+        push(@{$argsok{$k}} , $args{$Key}) ;
+      }
+      else { $argsok{$k} = $args{$Key} ;}
+    }
+    
+    %args = %argsok ;
+  }
 
   $args{'/tag'} = $tag ;
   $args{'/back'} = $this->{PARSING}{p} ;
+
+  push( @{$this->{PARSING}{p}{'/keys'}} , $tag) ;
   
   if ($this->{NOENTITY}) {
     foreach my $Key ( keys %args ) { &XML::Smart::_parse_basic_entity( $args{$Key} ) ;}
@@ -263,10 +299,16 @@ sub _Char {
 
 sub _End {
   my $this = shift ;
-  if ( $this->{PARSING}{p}{'/tag'} ne $_[0] ) { return ;}
+  my $tag = shift ;
+  
+  if    ( $this->{SMART}{tag} == 1 ) { $tag = lc($tag) ;}
+  elsif ( $this->{SMART}{tag} == 2 ) { $tag = uc($tag) ;}
 
+  if ( $this->{PARSING}{p}{'/tag'} ne $tag ) { return ;}
+
+  delete $this->{PARSING}{p}{'/tag'} ;
+  
   my $back  = delete $this->{PARSING}{p}{'/back'} ;
-  my $tag = delete $this->{PARSING}{p}{'/tag'} ;
   my $i = delete $this->{PARSING}{p}{'/i'} || 0 ;
   
   my $nkeys = keys %{$this->{PARSING}{p}} ;

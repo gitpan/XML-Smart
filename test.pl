@@ -3,7 +3,7 @@
 ###use Data::Dumper ; print Dumper( $XML->tree ) ;
 
 use Test;
-BEGIN { plan tests => 47 } ;
+BEGIN { plan tests => 55 } ;
 use XML::Smart ;
 
 no warnings ;
@@ -86,6 +86,50 @@ my $DATA = q`<?xml version="1.0" encoding="iso-8859-1"?>
   
   ok($data,q`<htmltitle="TITLE"><bodybgcolor="#000000"><SCRIPTLANGUAGE="JavaScript">&lt;!--functionstopError(){returntrue;}window.onerror=stopError;document.writeln("some&lt;tag&gt;wirtten!");--&gt;</SCRIPT><foo1bar1="x1"/><foo2bar2="x2"/></body></html>`);
 
+}
+#########################
+{
+  my $XML = XML::Smart->new(q`
+  <root>
+    <foo name='x' *>
+      <.sub1 arg="1" x=1 />
+      <.sub2 arg="2"/>
+      <bar size="100,50" +>
+      content
+      </bar>
+    </foo>
+  </root>
+  ` , 'XML::Smart::HTMLParser') ;
+  
+  my $data = $XML->data(noheader => 1 , wild => 1) ;
+  
+  ok($data , q`<root>
+  <foo name="x" *>
+    <.sub1 arg="1" x="1"/>
+    <.sub2 arg="2"/>
+    <bar size="100,50" +>
+      content
+      </bar>
+  </foo>
+</root>
+
+`);
+
+}
+#########################
+{
+  my $XML0 = XML::Smart->new(q`<root><foo1 name='x'/></root>` , 'XML::Smart::Parser') ;
+  my $XML1 = XML::Smart->new(q`<root><foo2 name='y'/></root>` , 'XML::Smart::Parser') ;
+  
+  my $XML = XML::Smart->new() ;
+  
+  $XML->{sub}{sub2} = $XML0 ;
+  push(@{$XML->{sub}{sub2}} , $XML1 ) ;
+  
+  my $data = $XML->data(noheader => 1) ;
+  
+  $data =~ s/\s//gs ;
+  ok($data,'<sub><sub2><root><foo1name="x"/></root></sub2><sub2><root><foo2name="y"/></root></sub2></sub>') ;
 }
 #########################
 {
@@ -173,6 +217,23 @@ my $DATA = q`<?xml version="1.0" encoding="iso-8859-1"?>
 }
 #########################
 {
+  
+  my $XML = XML::Smart->new(q`
+  <users>
+    <joe name="Joe X" email="joe@mail.com"/>
+    <jonh name="JoH Y" email="jonh@mail.com"/>
+    <jack name="Jack Z" email="jack@mail.com"/>
+  </users>
+  ` , 'XML::Smart::Parser') ;
+  
+  my @users = $XML->{users}('email','=~','^jo') ;
+  
+  ok( @users[0]->{name} , 'Joe X') ;
+  ok( @users[1]->{name} , 'JoH Y') ;
+  
+}
+#########################
+{
   my $XML = XML::Smart->new() ;
   
   $XML->{server} = {
@@ -237,7 +298,7 @@ my $DATA = q`<?xml version="1.0" encoding="iso-8859-1"?>
   my $data = $XML->data(length => 1 , nometagen => 1 ) ;
   $data =~ s/\s//gs ;
   
-  my $dataok = q`<?xmlversion="1.0"encoding="iso-8859-1"length="87"?><rootdata="aaa"var="10"><addr>1</addr><addr>2</addr><addr>3</addr></root>`;
+  my $dataok = q`<?xmlversion="1.0"encoding="iso-8859-1"length="88"?><rootdata="aaa"var="10"><addr>1</addr><addr>2</addr><addr>3</addr></root>`;
 
   ok($data,$dataok) ;
 }
@@ -383,7 +444,7 @@ my $DATA = q`<?xml version="1.0" encoding="iso-8859-1"?>
   
   my $XML2 = $XML->cut_root ;
   my $addr2 = $XML2->{server}{address} ;
-  
+
   ok($addr1,$addr2) ;
 
 }
@@ -402,6 +463,29 @@ my $DATA = q`<?xml version="1.0" encoding="iso-8859-1"?>
   
   my $data = $XML->data(nospace => 1 , noheader => 1 ) ;
   ok($data , q`<root><foo bar="x"> My Company &amp; Name + &lt;tag&gt; " + '...</foo></root>`) ;
+
+}
+#########################
+{
+
+  my $XML = XML::Smart->new(q`
+  <root>
+    <foo arg1="x" arg2="y">
+      <bar arg='z'>cont</bar>
+    </foo>
+  </root>
+  ` , 'XML::Smart::Parser') ;
+  
+  my @nodes = $XML->{root}{foo}->nodes ;
+  ok($nodes[0]->{arg},'z');
+  
+  my @nodes = $XML->{root}{foo}->nodes_keys ;
+  ok("@nodes",'bar');
+
+  ok($XML->{root}{foo}{bar}->is_node) ;
+  
+  my @keys = $XML->{root}{foo}('@keys') ;
+  ok("@keys",'arg1 arg2 bar');  
 
 }
 #########################

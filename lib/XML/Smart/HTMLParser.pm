@@ -83,6 +83,10 @@ sub parse {
     if ($cont =~ /\S/s) { push(@parsed , 'Char' , $cont) ;}
     
     if ($args[0] =~ /^\/(.*)/) { push(@parsed , 'End' , $1) ;}
+    elsif (@args[-1] =~ /^\/$/) {
+      pop @args ;
+      push(@parsed , 'StartEnd' , [@args]) ;
+    }
     else { push(@parsed , 'Start' , [@args]) ;}
   }
   
@@ -93,12 +97,12 @@ sub parse {
       
       if ($type eq 'End') {
         my $tag = $parsed[$i+1] ;
-        $close{$tag}++ ;
+        $close{lc($tag)}++ ;
       }
       elsif ($type eq 'Start') {
         my $tag = @{$parsed[$i+1]}[0] ;
         
-        if (!$close{$tag}) {
+        if (!$close{lc($tag)}) {
           if (@{$parsed[$i+1]}[-1] eq '/' && $#{$parsed[$i+1]} % 2 ) {
             pop @{$parsed[$i+1]} ;
             $parsed[$i] = 'StartEnd' ;
@@ -107,7 +111,7 @@ sub parse {
           else { push(@open , $tag) ;}
         }
         else {
-          $close{$tag}-- ;
+          $close{lc($tag)}-- ;
         }
       }
     }
@@ -118,7 +122,7 @@ sub parse {
   }
 
   &{$this->{Init}}($this) ;
-
+  
   for (my $i = 0 ; $i <= $#parsed ; $i+=2) {
     my $type = $parsed[$i] ;
     my $args = $parsed[$i+1] ;
