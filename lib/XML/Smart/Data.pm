@@ -42,7 +42,7 @@ sub data {
   {
     my $addroot ;
 
-    if ( ref $tree ne 'HASH' ) { $addroot = 1 ;}
+    if ( $args{root} || ref $tree ne 'HASH' ) { $addroot = 1 ;}
     else {
       my $ks = keys %$tree ;
       my $n = 1 ;

@@ -22,16 +22,13 @@ no warnings ;
 sub _generate_nulltree {
   my $saver = shift ;
   my ( $K , $I ) = @_ ;
-  if ( !$saver->{keyprev} ) {
-    $saver->{null} = 0 ;
-    return ;
-  }
+
+  $saver->{null} = 0 ;
+
+  if ( !$saver->{keyprev} ) { return ;}
   
   my @tree = @{$saver->{keyprev}} ;
-  if (!@tree) {
-    $saver->{null} = 0 ;
-    return ;  
-  }
+  if (!@tree) { return ;}
   
   if ( $I > 0 ) { push(@tree , "[$I]") ;}
   
@@ -575,7 +572,7 @@ sub STORE {
   
   &XML::Smart::Tie::_delete_XPATH($this->{saver}) ;
   
-  my @call = caller ;
+  ##my @call = caller ;
   ##print "***STORE>> $this->{saver}->{point} [@call] $_[0]\n" ;
   
   if (ref($this->{saver}->{point}) eq 'ARRAY') {

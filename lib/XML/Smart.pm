@@ -23,7 +23,7 @@ use XML::Smart::Tie ;
 use XML::Smart::Tree ;
 
 our ($VERSION) ;
-$VERSION = '1.6.6' ;
+$VERSION = '1.6.7' ;
 
 ###############
 # AUTOLOADERS #
@@ -165,7 +165,7 @@ sub clone {
   
   if (defined $_[0]) { $$clone->{content} = \$_[0] ;}
 
-  if ( $null_clone || defined $saver->{null} ) {
+  if ( $null_clone || $saver->{null} ) {
     $$clone->{null} = 1 ;
     ## $$clone->{self} = $clone ;
   }
