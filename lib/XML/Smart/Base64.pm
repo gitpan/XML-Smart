@@ -2,7 +2,7 @@
 ## Name:        Base64.pm
 ## Purpose:     XML::Smart::Base64
 ## Author:      Graciliano M. P.
-## Modified by:
+## Modified by: Harish Madabushi
 ## Created:     25/5/2003
 ## RCS-ID:      
 ## Copyright:   (c) 2003 Graciliano M. P.
@@ -11,9 +11,10 @@
 #############################################################################
 
 package XML::Smart::Base64 ;
-our $VERSION = '1.0' ;
+use strict                 ;
+use warnings               ;
 
-no warnings ;
+our $VERSION = '1.1'       ;
 
 my ($BASE64_PM) ;
 eval("use MIME::Base64 ()") ;
