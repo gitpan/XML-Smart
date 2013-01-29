@@ -20,7 +20,7 @@ use warnings                                                   ;
 use XML::Smart::Shared qw( _unset_sig_warn _reset_sig_warn )   ;
 
 our ($VERSION , @ISA) ;
-$VERSION = '1.1' ;
+$VERSION = '1.11' ;
 
 #######
 # NEW #
@@ -93,7 +93,7 @@ sub parse {
     if ($cont =~ /\S/s) { push(@parsed , 'Char' , $cont) ;}
     
     if ($args[0] =~ /^\/(.*)/) { push(@parsed , 'End' , $1) ;}
-    elsif (@args[-1] =~ /^\/$/) {
+    elsif ($args[-1] =~ /^\/$/) {
       pop @args ;
       push(@parsed , 'StartEnd' , [@args]) ;
     }
@@ -121,7 +121,7 @@ sub parse {
           }
           elsif ($parsed[$i+2] ne 'Char') { $parsed[$i] = 'StartEnd' ;}
           else {
-            push( @{ $open{@close[-1]} }  , 'End' , $tag) ;
+	      push( @{ $open{$close[-1]} }  , 'End' , $tag) ;
           }
         }
         else {
@@ -215,12 +215,17 @@ sub parse_tag {
 
   )/gsx) {
     my $got ;
+    _unset_sig_warn() ;
     if    ($1 ne '') { $got = $1 ;}
     elsif ($2 ne '') { $got = $2 ;}
     elsif ($3 ne '') { $got = $3 ;}
     elsif ($4 ne '') { $got = $4 ;}
     elsif ($5 ne '') { $got = $5 ;}
-    else { next ;}
+    else { 
+	_reset_sig_warn() ;
+	next ;
+    }
+    _reset_sig_warn() ;
     
     if ($got =~ /^(['"])/s) {
       my $q = $1 ;

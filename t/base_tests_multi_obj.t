@@ -1,3 +1,4 @@
+
 use strict                  ;
 use warnings FATAL => 'all' ;
 
@@ -8,6 +9,7 @@ use ExtUtils::MakeMaker     ;
 BEGIN { plan tests => 164 } ;
 
 use XML::Smart              ;
+
 
 my $DATA = q`<?xml version="1.0" encoding="iso-8859-1"?>
 <hosts>
@@ -23,6 +25,10 @@ my $DATA = q`<?xml version="1.0" encoding="iso-8859-1"?>
     <server address="192.168.3.30" os="bsd" type="freebsd" version="9.0"/>
 </hosts>
 `;
+
+my $XML = new XML::Smart() ;
+$XML = new XML::Smart() ;
+$XML = new XML::Smart() ;
 
 ##if (0) {
 #########################
@@ -1245,42 +1251,7 @@ TEXT1 &amp; more
 
 }
 #########################
-{
 
-
-    eval(q`use LWP::UserAgent`) ;
-    if ( !$@ ) {
-
-	if( $ENV{ URL_TESTS } ) { 
-  
-	    my $url = 'http://www.perlmonks.org/index.pl?node_id=16046' ;
-	    
-	    print STDERR "\nGetting URL... " ;
-		
-	    my $XML = XML::Smart->new($url , 'XML::Smart::Parser') ;
-		
-	    print STDERR "Test: " ;
-	    
-	    if ( $XML->{XPINFO}{INFO}{sitename} eq 'PerlMonks' ) { 
-		print STDERR "OK\n" ;
-	    } else {
-		print STDERR "ERROR!\n" ;
-		print STDERR "-----------------------------------------------\n" ;
-		print STDERR "The XML of the URL:\n\n" ;
-		print STDERR $XML->data ;
-		print STDERR "-----------------------------------------------\n" ;
-	    }
-	} else { 
-		print STDERR "Skipping URL test, Enable by setting ENV variable URL_TESTS \n" ;
-	}
-    } else { 
-	print "LWP::UserAgent not found - Skipping URL test!\n" ;
-    }
-
-    
-} 
-
-#########################
 
 1 ;
 

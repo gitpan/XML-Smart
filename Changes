@@ -1,7 +1,16 @@
 Revision history for Perl extension XML::Smart.
 
+1.73  2013-1-28
+    - Fixed bug 17834 in Tree.pm
+    - Fixed object copy bug 34695
+    - Updated POD to reflect where obj copy is not supported.
+    - Fixed object Deep copy bug ( bug id 56806 ) 
+    - Fixed Mem leak and added tests.
+    - Added ANNIHILATE for better object destruction
+    - Fixed Encoding errors, added tests and added to pod
 
 1.71  2013-1-26
+    - Updated all pm to use strict and warnings
     - Updated tests to use strict and warnings 
     - Added basic tests such as load
     - Moved tests to t/

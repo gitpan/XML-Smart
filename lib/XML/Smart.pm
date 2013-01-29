@@ -18,6 +18,8 @@ use 5.006                                                      ;
 use strict                                                     ;
 use warnings                                                   ;
 
+use Carp                                                       ;
+
 use Object::MultiType                                          ;
 
 use XML::Smart::Shared qw( _unset_sig_warn _reset_sig_warn )   ;
@@ -29,13 +31,15 @@ use XML::Smart::Tie                                            ;
 use XML::Smart::Tree                                           ;
 
 
-our ($VERSION) ;
-$VERSION = '1.71' ;
 
+our ($VERSION) ;
+$VERSION = '1.73' ;
 
 ###############
 # AUTOLOADERS #
 ###############
+
+## Lead to mem leak? ##
 
 sub data {
     require XML::Smart::Data ;
@@ -96,15 +100,23 @@ sub new {
 	tieonuse  => 1 ,
 	code      => \&find_arg , 
 	) ;
-    
+
+    $$this->{ parser } = $parser ;
+
     $parser = &XML::Smart::Tree::load($parser) ;
-    
+
     if ( !($file) or $file eq '') { $$this->{tree} = {} ;}
-    else { $$this->{tree} = &XML::Smart::Tree::parse($file,$parser,@_) ;}
+    else { 
+	eval { 
+	    $$this->{tree} = &XML::Smart::Tree::parse($file,$parser,@_) ;
+	}; croak( $@ ) if( $@ );
+    }
     
     $$this->{point} = $$this->{tree} ;
-    
     bless($this,$class) ;
+
+    return $this ;
+
 }
 
 #########
@@ -244,7 +256,10 @@ sub base {
 sub back {
   my $this = shift ;
   
-  my @tree = @{$$this->{keyprev}} ;
+  my @tree ;
+  if( $$this->{keyprev} ) { 
+      @tree = @{$$this->{keyprev}} ;
+  }
   if (!@tree) { return $this ;}
   
   my $last = pop(@tree) ;
@@ -356,30 +371,64 @@ sub i {
 ########
 
 sub copy {
-  my $this = shift ;
 
-  my $copy = Object::MultiType->new(
-  boolsub   => \&boolean ,
-  scalarsub => \&content ,
-  tiearray  => 'XML::Smart::Tie::Array' ,
-  tiehash   => 'XML::Smart::Tie::Hash' ,
-  tieonuse  => 1 ,
-  code      => \&find_arg , 
-  ) ;
-  
-  $$copy->{tree} = &_copy_hash($this->tree) ;
-  $$copy->{keyprev} = $$this->{keyprev} ;
-  
-  bless($copy, ref($this)) ;
-  
-  my ( $back , $key , $i ) = $copy->back ;
-  
-  if ( $key ne '' ) {
-    $copy = $back->{$key} ;
-    $copy = $back->[$i] if $i ;
-  }
+    my $this = shift ;
+
+    my $data = $this->data( noheader => 1 ) ;
+    my $copy = XML::Smart->new( $data, $$this->{ parser } ) ;
+
+
+    if( $$this->{keyprev} ) { 
+	my @old_array = @{ $$this->{keyprev} } ;
+	my @new_array = @old_array             ;
+	$$copy->{keyprev} = \@new_array        ;
+    }
+
+    my ( $back , $key , $i ) = $copy->back ;
     
-  return( $copy ) ;
+    _unset_sig_warn() ;
+    if( $key ne '' ) {
+	$copy = $back->{$key} ;
+	$copy = $back->[$i] if $i ;
+    }
+    _reset_sig_warn() ;
+
+    return $copy ;
+
+
+
+    # my $copy = Object::MultiType->new(
+    # 	boolsub   => \&boolean ,
+    # 	scalarsub => \&content ,
+    # 	tiearray  => 'XML::Smart::Tie::Array' ,
+    # 	tiehash   => 'XML::Smart::Tie::Hash' ,
+    # 	tieonuse  => 1 ,
+    # 	code      => \&find_arg , 
+    # 	) ;
+    
+    # $$copy->{tree}    = &_copy_hash($this->tree) ;
+    # if( $$this->{keyprev} ) { 
+    # 	$$copy->{keyprev} = $$this->{keyprev} ;
+    # }
+
+    # ## The following line fixes copy issues
+    # $$copy->{ point  } = $$copy->{ tree   } ;
+    # $$copy->{ parser } = $$this->{ parser } ;
+    # my $parser = &XML::Smart::Tree::load( $$this->{ parser }) ;
+
+    # bless($copy, ref($this)) ;
+    
+    # my ( $back , $key , $i ) = $copy->back ;
+    
+    # _unset_sig_warn() ;
+    # if( $key ne '' ) {
+    # 	$copy = $back->{$key} ;
+    # 	$copy = $back->[$i] if $i ;
+    # }
+    # _reset_sig_warn() ;
+    
+    # return( $copy ) ;
+
 }
 
 ##############
@@ -387,6 +436,7 @@ sub copy {
 ##############
 
 sub _copy_hash {
+
   my ( $ref ) = @_ ;
   my $copy ;
   
@@ -635,15 +685,16 @@ sub nodes {
 ##############
 
 sub nodes_keys {
+
   my $this = shift ;
   
   return () if $this->null ;
 
+
   my $nodes = $this->{'/nodes'}->pointer ;
   my $pointer = $$this->{point} ;
-  
+
   my @nodes ;
-  
   foreach my $Key ( keys %$this ) {
     if ( $$nodes{$Key} || (ref($$pointer{$Key}) eq 'HASH') || (ref($$pointer{$Key}) eq 'ARRAY' && $#{$$pointer{$Key}} > 0)  ) {
       push(@nodes , $Key) ;
@@ -703,9 +754,9 @@ sub set_tag { &set_node ;}
 #############
 
 sub set_order {
-  my $this = shift ;
+  my $this    = shift           ;
   my $pointer = $$this->{point} ;
-  @{$$pointer{'/order'}} = @_ ;
+  @{$$pointer{'/order'}} = @_   ;
 }
 
 sub order {
@@ -1120,7 +1171,90 @@ sub data_pointer {
 
 sub DESTROY {
   my $this = shift ;
+  
+  if( $$this->{ DEV_DEBUG } ) {
+      require Devel::Cycle ;
+      my $circ_ref = 0     ;
+      my $tmp = Devel::Cycle::find_cycle(
+	  $this, 
+	  sub {
+	      my $path = shift;
+	      foreach (@$path) {
+		  my ($type,$index,$ref,$value) = @$_;
+		  $circ_ref = 1 ;
+		  
+	      }
+	      
+	  });
+
+      if( $circ_ref ) { 
+	  $this->ANNIHILATE() ;
+	  my $tmp = Devel::Cycle::find_cycle( 
+	      $this, 
+	      sub {
+		  print STDERR "Circular reference found while destroying object - AFTER ANNIHILATE\n" ;
+	      });
+      }
+  } 
+
   $$this->clean if( $this && $$this ) ; # In case object was messed with ( bug 62091 ) 
+
+
+}
+
+sub ANNIHILATE {
+
+  my $this = shift ;
+  my $base = shift ;
+  
+  if( ref $$this->{ point } eq 'HASH' ) { 
+      my %clean ;
+      $$this->{ point } = \%clean ;
+  } else { 
+      $this->{ point }->ANNIHILATE( ) ;
+  }
+
+  if( ref $$this->{ tree } eq 'HASH' ) { 
+      my %clean ;
+      $$this->{ tree } = \%clean ;
+  } else { 
+      $this->{ tree }->ANNIHILATE( ) ;
+  }
+
+
+  if( ref $$this->{ back } eq 'HASH' ) { 
+      my %clean ;
+      $$this->{ back } = \%clean ;
+  } else { 
+      $this->{ back }->ANNIHILATE( ) ;
+  }
+
+  if( $$this->{ XPATH } ) { # and ( ref $$this->{ XPATH } eq 'XML::XPath' ) ) { 
+      my $xpath = $$this->{ XPATH } ;
+      $$xpath->cleanup() ;
+      my $context = $$xpath->{ _context } ;
+      my $context_ref = ref $context ;
+      if( $context_ref =~ /XML\:\:XPath\:\:Node\:\:/ ) {
+	  _xml_xpath_clean( $context ) ;
+      } 
+  }
+
+  $$this->DESTROY();
+
+  return 1 ;
+
+}
+
+
+sub _xml_xpath_clean { 
+
+    my $path = shift ;
+
+    $path->dispose() ;
+    # Data::Structure::Util::unbless( $path ) ;
+    
+    return ;
+
 }
 
 ###################
@@ -1561,6 +1695,11 @@ Return a copy of the XML::Smart object (pointing to the base).
 ** This is good when you want to keep 2 versions of the same XML tree in the memory,
 since one object can't change the tree of the other!
 
+B<WARNING:> set_node(), set_cdata() and set_binary() changes are not persistant over copy - 
+Once you create a second copy these states are lost.
+
+b<warning:> do not copy after apply_dtd() unless you have checked for dtd errors.
+
 =head2  cut_root()
 
 Cut the root key:
@@ -1581,7 +1720,7 @@ Return the data of the XML object (rebuilding it).
 
 B<Options:>
 
-=over 10
+=over 11
 
 =item nodtd
 
@@ -1629,6 +1768,14 @@ Do not add the meta generator tag: <?meta generator="XML::Smart" ?>
 =item meta
 
 Set the meta tags of the XML document.
+
+=item decode
+
+As of VERSION 1.73 there are three different base64 encodings that are used. They are picked
+based on which of them support the data provided. If you want to retrieve data using the 'data' function
+the resultant xml will have dt:dt="binary.based" contained within it. To retrieve the decoded data
+use: $XML->data( decode => 1 ) 
+
 
 Examples:
 
@@ -1771,6 +1918,7 @@ Define the key to be handled automatically. Soo, data() will define automaticall
 
 I<** This method is useful to remove set_node(), set_cdata() and set_binary() changes.>
 
+
 =head2  set_auto_node
 
 Define the key as a node, and data() will define automatically if it's CDATA or BINARY.
@@ -1802,6 +1950,8 @@ Example of CDATA node:
 Set/unset the current key as a node (tag).
 
 ** If BOOL is not defined will use I<TRUE>.
+
+B<WARNING:> You cannot set_node, copy the object and then set_node( 0 ) [ Unset node ]
 
 =head2  set_order(KEYS)
 
@@ -1849,6 +1999,12 @@ Return a XML::XPath object, based in the XML::Smart pointer in the tree.
   my $data = $srvs->XPath_pointer->findnodes_as_string('/') ;
 
 I<** Need XML::XPath installed, but only load when is needed.>
+
+
+=head2 ANNIHILATE
+
+XML::Smart uses XML::XPath that, for perfomance reasons, leaks memory. The ensure that this memory is freed you can 
+explicitly call ANNIHILATE before the XML::Smart object goes out of scope. 
 
 
 =head1 ACCESS
@@ -2076,16 +2232,22 @@ CDATA will be parsed as any other content, since CDATA is only a block that
 won't be parsed.
 
 B<When creating XML data>, like at $XML->data(), the binary format and CDATA are
-detected using this roles:
+detected using these rules:
 
   BINARY:
-  - If have characters that can't be in XML.
+  - If your data has characters that can't be in XML.
 
   * Characters accepted:
     
     \s \w \d
     !"#$%&'()*+,-./:;<=>?@[\]^`{|}~
-    0x80, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89, 0x8a, 0x8b, 0x8c, 0x8e, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97, 0x98, 0x99, 0x9a, 0x9b, 0x9c, 0x9e, 0x9f, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7, 0xa8, 0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf, 0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xbb, 0xbc, 0xbd, 0xbe, 0xbf, 0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7, 0xc8, 0xc9, 0xca, 0xcb, 0xcc, 0xcd, 0xce, 0xcf, 0xd0, 0xd1, 0xd2, 0xd3, 0xd4, 0xd5, 0xd6, 0xd7, 0xd8, 0xd9, 0xda, 0xdb, 0xdc, 0xdd, 0xde, 0xdf, 0xe0, 0xe1, 0xe2, 0xe3, 0xe4, 0xe5, 0xe6, 0xe7, 0xe8, 0xe9, 0xea, 0xeb, 0xec, 0xed, 0xee, 0xef, 0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff, 0x20, 
+    0x80, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89, 0x8a, 0x8b, 0x8c, 0x8e, 0x91, 0x92, 0x93, 0x94, 0x95, 
+    0x96, 0x97, 0x98, 0x99, 0x9a, 0x9b, 0x9c, 0x9e, 0x9f, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7, 0xa8, 0xa9, 
+    0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf, 0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xbb, 
+    0xbc, 0xbd, 0xbe, 0xbf, 0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7, 0xc8, 0xc9, 0xca, 0xcb, 0xcc, 0xcd, 
+    0xce, 0xcf, 0xd0, 0xd1, 0xd2, 0xd3, 0xd4, 0xd5, 0xd6, 0xd7, 0xd8, 0xd9, 0xda, 0xdb, 0xdc, 0xdd, 0xde, 0xdf, 
+    0xe0, 0xe1, 0xe2, 0xe3, 0xe4, 0xe5, 0xe6, 0xe7, 0xe8, 0xe9, 0xea, 0xeb, 0xec, 0xed, 0xee, 0xef, 0xf0, 0xf1, 
+    0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff, 0x20
 
   TODO: 0x81, 0x8d, 0x8f, 0x90, 0xa0 
   
@@ -2104,14 +2266,20 @@ So, this will be a CDATA content:
     line2
   ]]></code>
 
-If a binary content is detected, it will be converted to B<base64> and a B<dt:dt>
+If binary content is detected, it will be converted to B<base64> and a B<dt:dt>
 attribute added in the tag to tell the format.
 
   <code dt:dt="binary.base64">f1NPTUUgQklOQVJZIERBVEE=</code>
 
+
+B<NOTE:> As of VERSION 1.73 there are three different base64 encodings that are used. They are picked
+based on which of them support the data provided. If you want to retrieve data using the 'data' function
+the resultant xml will have dt:dt="binary.based" contained within it. To retrieve the decoded data
+use: $XML->data( decode => 1 ) 
+
 =head1 UNICODE and ASCII-extended (ISO-8859-1)
 
-I<XML::Smart> support only this 2 encode types, Unicode (UTF-8) and ASCII-extended (ISO-8859-1),
+I<XML::Smart> support only thse 2 encode types, Unicode (UTF-8) and ASCII-extended (ISO-8859-1),
 and must be enough. (B<Note that UTF-8 is only supported on Perl-5.8+>).
 
 When creating XML data, if any UTF-8 character is detected the I<encoding> attribute
@@ -2328,8 +2496,11 @@ key. So this actually returns another object, pointhing (inside it) to the key:
 =head1 TODO
 
   * Finish XPath implementation.
-  * DTD.
+  * DTD - Handle <!DOCTYPE> gracefully.
   * Implement a better way to declare meta tags.
+  * Add 0x81, 0x8d, 0x8f, 0x90, 0xa0 ( multi byte characters to the list of accepted binary characters )
+
+
 
 =head1 SEE ALSO
 

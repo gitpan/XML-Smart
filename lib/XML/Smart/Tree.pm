@@ -15,19 +15,22 @@ package XML::Smart::Tree                                       ;
 use strict                                                     ;
 use warnings                                                   ;
 
+use Carp                                                       ;
+
 use XML::Smart::Entity qw(_parse_basic_entity)                 ;
 use XML::Smart::Shared qw( _unset_sig_warn _reset_sig_warn )   ;
 
 our ($VERSION) ;
-$VERSION = '1.1' ;
+$VERSION = '1.31' ;
 
 my %PARSERS = (
-    XML_Parser => 0 ,
-    XML_Smart_Parser => 0 ,
+    XML_Parser           => 0 ,
+    XML_Smart_Parser     => 0 ,
     XML_Smart_HTMLParser => 0 ,
     ) ;
 
-my $DEFAULT_LOADED ;
+## BUG - By making DEFAULT_LOADED a global variable it is working across objects! ( Watch for possible usage elsewhere )
+# my $DEFAULT_LOADED ;
 
 use vars qw($NO_XML_PARSER);
 
@@ -96,6 +99,8 @@ sub load {
   my ( $parser ) = @_ ;
   my $module ;
   
+  my $DEFAULT_LOADED  ;
+
   if ($parser) {
     $parser =~ s/:+/_/gs ;
     $parser =~ s/\W//g ;
@@ -119,7 +124,7 @@ sub load {
       $PARSERS{XML_Smart_HTMLParser} = 1 if !$PARSERS{XML_Smart_HTMLParser} && &load_XML_Smart_HTMLParser() ;
       $ok = $PARSERS{XML_Smart_HTMLParser} ;
   }
-  
+
   if (!$ok && !$DEFAULT_LOADED) {
       $PARSERS{XML_Parser} = 1 if &load_XML_Parser() ;
       $module = 'XML_Parser' ;
@@ -138,6 +143,7 @@ sub load {
 #########
 
 sub parse {
+
   my $module = $_[1] ;
   
   my $data ;
@@ -197,8 +203,11 @@ sub parse {
   End   => \&_End ,
   Final => \&_Final ,
   ) ;
-  
-  my $tree = $xml->parse($data);
+
+  my $tree ;
+  eval { 
+      $tree = $xml->parse($data);
+  }; croak( $@ ) if( $@ );
   return( $tree ) ;
 }
 

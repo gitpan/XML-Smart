@@ -21,9 +21,8 @@ require Exporter                                               ;
 use XML::Smart::Entity qw(_add_basic_entity)                   ;
 use XML::Smart::Shared qw( _unset_sig_warn _reset_sig_warn )   ;
 
-
 our ($VERSION , @ISA) ;
-$VERSION = '0.03' ;
+$VERSION = '0.05' ;
 
 @ISA = qw(Exporter) ;
 
@@ -37,12 +36,15 @@ our @EXPORT_OK = @EXPORT ;
 sub data {
   _unset_sig_warn() ;
   my $this = shift ;
+
   my ( %args ) = @_ ;
   
   my $tree ;
-  
-  if ( $args{tree} ) { $tree = $args{tree} ;}
-  else { $tree = $this->tree ;}
+  if( $args{tree} ) { 
+      $tree = $args{ tree } ;
+  } else { 
+      $tree = $this->tree   ;
+  }
   
   {
     my $addroot ;
@@ -85,8 +87,8 @@ sub data {
 
   my ($data,$unicode) ;
   {
-    my $parsed = {} ;
-    &_data(\$data , $tree , '' , -1 , {} , $parsed , undef , undef , $args{noident} , $args{nospace} , $args{lowtag} , $args{lowarg} , $args{wild} , $args{sortall} ) ;
+      my $parsed = {} ;
+      &_data( $args{decode}, \$data , $tree , '' , -1 , {} , $parsed , undef , undef , $args{noident} , $args{nospace} , $args{lowtag} , $args{lowarg} , $args{wild} , $args{sortall} ) ;
     $data .= "\n" if !$args{nospace} ;
     if ( &_is_unicode($data) ) { $unicode = 1 ;}
   }
@@ -230,7 +232,7 @@ sub _is_unicode {
 sub _data {
 
   _unset_sig_warn() ;
-  my ( $data , $tree , $tag , $level , $prev_tree , $parsed , $ar_i , $node_type , @stat ) = @_ ;
+  my ( $decode, $data , $tree , $tag , $level , $prev_tree , $parsed , $ar_i , $node_type , @stat ) = @_ ;
 
   if (ref($tree) eq 'XML::Smart') { $tree = defined $$tree->{content} ? $$tree->{content} : $$tree->{point} ;}
   
@@ -249,6 +251,7 @@ sub _data {
   $stat[1] -= 2 if $stat[1] > 1 ;
   
   my $tag_org = $tag ;
+
   $tag = $stat[4] ? $tag : &_check_tag($tag) ;
   if    ($stat[2] == 1) { $tag = "\L$tag\E" ;}
   elsif ($stat[2] == 2) { $tag = "\U$tag\E" ;}
@@ -284,7 +287,7 @@ sub _data {
       if ( $Key eq '!--' && (!ref($$tree{$Key}) || ( ref($$tree{$Key}) eq 'HASH' && (keys %{$$tree{$Key}}) == 1 && (defined $$tree{$Key}{CONTENT} || defined $$tree{$Key}{content}) ) ) ) {
         my $ct = $$tree{$Key} ;
         if (ref $$tree{$Key}) { $ct = defined $$tree{$Key}{CONTENT} ? $$tree{$Key}{CONTENT} : $$tree{$Key}{content} ;} ;
-        if ( $ct ne '' ) { $tags .= "$ident<!-- $ct -->" ;}
+        if ( $ct ne '' ) { $tags .= "$ident<!--$ct-->" ;}
       }
       elsif (ref($$tree{$Key})) {
         my $k = $$tree{$Key} ;
@@ -295,12 +298,12 @@ sub _data {
         elsif ( ref $k eq 'ARRAY' && $multi_keys{$Key} ) {
           $i = $array_i{$Key}++ if $#{$k} > 0 ;
         }
-        $args .= &_data(\$tags,$k,$Key, $level+1 , $tree , $parsed , $i , $$tree{'/nodes'}{$Key} , @stat) if $array_i{$Key} ne 'ok' ;
+        $args .= &_data($decode, \$tags,$k,$Key, $level+1 , $tree , $parsed , $i , $$tree{'/nodes'}{$Key} , @stat) if $array_i{$Key} ne 'ok' ;
         $array_i{$Key} = 'ok' if $i eq '' && ref $k eq 'ARRAY' ;
       }
       elsif ( $$tree{'/nodes'}{$Key} ) {
         my $k = [$$tree{$Key}] ;
-        $args .= &_data(\$tags,$k,$Key, $level+1 , $tree , $parsed , undef , $$tree{'/nodes'}{$Key} , @stat) ;
+        $args .= &_data($decode, \$tags,$k,$Key, $level+1 , $tree , $parsed , undef , $$tree{'/nodes'}{$Key} , @stat) ;
       }
       elsif (lc($Key) eq 'content') {
         if ( tied($$tree{$Key}) && $$tree{$Key} =~ /\S/s ) {
@@ -341,13 +344,13 @@ sub _data {
             $tags .= qq`$ident<$k dt:dt="binary.base64">$base64</$k>`;
           }
         }
-      }
-    }
+      }  
+    } # foreach my $Key ( @all_keys ) { -- Contains       if ($Key eq '' || $Key eq '/order' || $Key eq '/nodes') { next ;} 
     
     foreach my $Key ( keys %array_i ) {
       if ( $array_i{$Key} ne 'ok' && $#{ $$tree{$Key} } >= $array_i{$Key} ) {
         for my $i ( $array_i{$Key} .. $#{ $$tree{$Key} } ) {
-          $args .= &_data(\$tags, $$tree{$Key} ,$Key, $level+1 , $tree , $parsed , $i , $$tree{'/nodes'}{$Key} , @stat) ;
+          $args .= &_data($decode, \$tags, $$tree{$Key} ,$Key, $level+1 , $tree , $parsed , $i , $$tree{'/nodes'}{$Key} , @stat) ;
         }
       }
     }
@@ -389,8 +392,8 @@ sub _data {
       substr($tags , $po , $p1) = $cont ;
     }
     
-    ##print "***$tag>> $args,$args_end,$tags,$cont,$stat_1 [@all_keys]\n" ;
-    
+    # print STDERR "***$tag>> $args,$args_end,$tags,$cont,$stat_1 [@all_keys]\n" ;
+
     if ($args_end ne '') {
       $args .= $args_end ;
       $args_end = undef ;
@@ -400,8 +403,14 @@ sub _data {
       $$data .= qq`$ident<$tag/>` if $tag ne '' ;
     }
     elsif ($args ne '' && $tags ne '') {
-      $$data .= qq`$ident<$tag$args>` if $tag ne '' ;
-      $$data .= $tags ;
+      if( $args =~ /dt\:dt="binary.base64"/ and $decode ) { 
+	  $$data .= qq`$ident<$tag>` if $tag ne '' ;
+	  require XML::Smart::Base64 ;
+	  $$data .= &XML::Smart::Base64::decode_base64( $tags ) ;
+      } else { 
+	  $$data .= qq`$ident<$tag$args>` if $tag ne '' ;
+	  $$data .= $tags                                       ;
+      }
       $$data .= $ident if !$cont ;
       $$data .= qq`</$tag>` if $tag ne '' ;
     }
@@ -417,6 +426,7 @@ sub _data {
     else {
       $$data .= qq`$ident<$tag></$tag>` if $tag ne '' ;
     }
+
   }
   elsif (ref($tree) eq 'ARRAY') {
     my ($c,$v,$tags) ;
@@ -428,17 +438,17 @@ sub _data {
       
       my $do_val = 1 ;
       if ( $tag_org eq '!--' && ( !ref($value) || ( ref($value) eq 'HASH' && keys %{$value} == 1 && (defined $$value{CONTENT} || defined $$value{content}) ) ) ) {
-        $c++ ;
-        my $ct = $value ;
-        if (ref $value) { $ct = defined $$value{CONTENT} ? $$value{CONTENT} : $$value{content} ;} ;
-        $tags .= $ident . '<!--' . $ct . '-->' ;
-        $v = $ct if $c == 1 ;
-        $do_val = 0 ;
+	  $c++ ;
+	  my $ct = $value ;
+	  if (ref $value) { $ct = defined $$value{CONTENT} ? $$value{CONTENT} : $$value{content} ;} ;
+	  $tags .= $ident . '<!--' . $ct . '-->' ;
+	  $v = $ct if $c == 1 ;
+	  $do_val = 0 ;
       }
       elsif (ref($value)) {
         if (ref($value) eq 'HASH') {
           $c = 2 ;
-          &_data(\$tags,$value,$tag,$level, $tree , $parsed , undef , undef , @stat) ;
+          &_data($decode, \$tags,$value,$tag,$level, $tree , $parsed , undef , undef , @stat) ;
           $do_val = 0 ;
         }
         elsif (ref($value) eq 'SCALAR') { $value = $$value ;}
