@@ -1,10 +1,10 @@
 {
-   "abstract" : "A smart, easy and powerful way to access/create XML files/data.",
+   "abstract" : "A smart, easy and powerful way to access or create XML from fiels, data and URLs.",
    "author" : [
-      "Graciliano M. P. <gm@virtuasites.com.br>"
+      "Graciliano M. P. <gm AT virtuasites.com.br>"
    ],
    "dynamic_config" : 1,
-   "generated_by" : "ExtUtils::MakeMaker version 6.62, CPAN::Meta::Converter version 2.112150",
+   "generated_by" : "ExtUtils::MakeMaker version 6.64, CPAN::Meta::Converter version 2.112621",
    "license" : [
       "unknown"
    ],
@@ -22,7 +22,7 @@
    "prereqs" : {
       "build" : {
          "requires" : {
-            "ExtUtils::MakeMaker" : 0
+            "Test::More" : 0
          }
       },
       "configure" : {
@@ -32,10 +32,10 @@
       },
       "runtime" : {
          "requires" : {
-            "Object::MultiType" : "0.03"
+            "perl" : "5.006"
          }
       }
    },
    "release_status" : "stable",
-   "version" : "1.73"
+   "version" : "1.74"
 }
