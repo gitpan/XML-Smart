@@ -1,5 +1,5 @@
 ---
-abstract: "A smart, easy and powerful way to access or create XML from fiels, data and URLs."
+abstract: 'A smart, easy and powerful way to access or create XML from fiels, data and URLs.'
 author:
   - 'Graciliano M. P. <gm AT virtuasites.com.br>'
 build_requires:
@@ -18,5 +18,6 @@ no_index:
     - t
     - inc
 requires:
+  Object::MultiType: 0.03
   perl: 5.006
-version: 1.74
+version: 1.75
