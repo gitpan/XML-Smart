@@ -631,6 +631,7 @@ subtest 'XML::Smart::Parser Data populate test' => sub {
   done_testing() ;
 
 } ;
+
 #########################
 
 
@@ -679,6 +680,7 @@ subtest 'XML::Smart::Parser Data Populate Array test' => sub {
 
 
 subtest 'XML::Smart::Parser Array assign test' => sub {
+
 
   my $XML = XML::Smart->new('' , 'XML::Smart::Parser') ;
                           

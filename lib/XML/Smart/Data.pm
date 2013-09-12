@@ -22,7 +22,7 @@ use XML::Smart::Entity qw(_add_basic_entity)                   ;
 use XML::Smart::Shared qw( _unset_sig_warn _reset_sig_warn )   ;
 
 our ($VERSION , @ISA) ;
-$VERSION = '0.05' ;
+$VERSION = '0.06' ;
 
 @ISA = qw(Exporter) ;
 
@@ -34,11 +34,11 @@ our @EXPORT_OK = @EXPORT ;
 ########
 
 sub data {
+
   _unset_sig_warn() ;
   my $this = shift ;
-
-  my ( %args ) = @_ ;
   
+  my ( %args ) = @_ ;
   my $tree ;
   if( $args{tree} ) { 
       $tree = $args{ tree } ;
@@ -46,37 +46,42 @@ sub data {
       $tree = $this->tree   ;
   }
   
-  {
-    my $addroot ;
-
-    if ( $args{root} || ref $tree ne 'HASH' ) { $addroot = 1 ;}
-    else {
-      my $ks = keys %$tree ;
-      my $n = 1 ;
-      if (ref $$tree{'/nodes'} eq 'HASH')  { ++$n ;}
-      if (ref $$tree{'/order'} eq 'ARRAY') { ++$n ;}
-      #if (ref $$tree{'/nodes'} eq 'HASH')  { ++$n if (keys %{$$tree{'/nodes'}}) ;}
-      #if (ref $$tree{'/order'} eq 'ARRAY') { ++$n if @{$$tree{'/order'}} ;}
-
-      if ($ks > $n) { $addroot = 1 ;}
+  { 
+      my $addroot ;
+      if ( $args{root} || ref $tree ne 'HASH' ) { $addroot = 1 ; }
       else {
-        my $k = (keys %$tree)[0] ;
-        if (ref $$tree{$k} eq 'ARRAY' && $#{$$tree{$k}} > 0) {
-          my ($c,$ok) ;
-          foreach my $i ( @{$$tree{$k}} ) {
-            if ( $i && &is_valid_tree($i) ) { $c++ ; $ok = $i ;}
-            if ($c > 1) { $addroot = 1 ; last ;}
-          }
-          if (!$addroot && $ok) { $$tree{$k} = $ok ;}
-        }
-        elsif (ref $$tree{$k} =~ /^(?:HASH|)$/) {$addroot = 1 ;}
+	  
+	  my $ks = keys %$tree ; ## WARNING ON ORDER ( Mostly harmless )!
+
+	  my $n = 1 ;
+	  if (ref $$tree{'/nodes'} eq 'HASH')  { ++$n ;}
+	  if (ref $$tree{'/order'} eq 'ARRAY') { ++$n ;}
+	  #if (ref $$tree{'/nodes'} eq 'HASH')  { ++$n if (keys %{$$tree{'/nodes'}}) ;}
+	  #if (ref $$tree{'/order'} eq 'ARRAY') { ++$n if @{$$tree{'/order'}} ;}
+	  
+	  if ($ks > $n) { $addroot = 1 ; }
+	  else {
+	      # Fix hash randomization bug Id:84929
+	      my %tmp = %$tree ;
+	      delete $tmp{ '/nodes' } ;
+	      delete $tmp{ '/order' } ;
+	      my $k = (keys %tmp)[0] ;
+	      if (ref $$tree{$k} eq 'ARRAY' && $#{$$tree{$k}} > 0) {
+		  my ($c,$ok) ;
+		  foreach my $i ( @{$$tree{$k}} ) {
+		      if ( $i && &is_valid_tree($i) ) { $c++ ; $ok = $i ;}
+		      if ($c > 1) { $addroot = 1 ; last ;}
+		  }
+		  if (!$addroot && $ok) { $$tree{$k} = $ok ;}
+	      }
+	      elsif (ref $$tree{$k} =~ /^(?:HASH|)$/) { $addroot = 1 ;}
+	  }
       }
-    }
-    
-    if ($addroot) {
-      my $root = $args{root} || 'root' ;
-      $tree = {$root => $tree} ;
-    }
+      
+      if ($addroot) {
+	  my $root = $args{root} || 'root' ;
+	  $tree = {$root => $tree} ;
+      }
   }
   
   if ( $args{lowtag} ) { $args{lowtag} = 1 ;}
@@ -144,6 +149,7 @@ sub data {
     $dtd =~ s/\s*$// ;
     $dtd = "\n$dtd" if $dtd ne '' && !$args{nospace} ;
   }
+
   
   $data = $xml . $metagen . $meta . $dtd . $data ;
   
@@ -156,6 +162,50 @@ sub data {
   _reset_sig_warn() ;
   return($data) ;
 }
+
+
+
+##################################################
+##            UNUSED - DEPRECATED.              ##
+##################################################
+
+
+sub _replace_data_with_lt { 
+
+    my $data = shift ;
+
+    while( my $index_of_smart_html_encode = index( $data, 'smart_html_encode( &lt; )'  ) ) { 
+	last if( $index_of_smart_html_encode == -1 ) ;
+	my $tmp = substr( $data                                  , 
+			  $index_of_smart_html_encode            ,
+			  length( 'smart_html_encode( &lt; )' )  ,  
+			  '<' 
+	      ) ;
+    }
+
+    while( my $index_of_multiple_smart_html_encode = index( $data, 'multiple_smart_html_encode('  ) ) { 
+	last if( $index_of_multiple_smart_html_encode == -1 ) ;
+	my $check_string = substr( $data, $index_of_multiple_smart_html_encode ) ;
+	if( $check_string =~ /multiple_smart_html_encode\((.*?)\).*/ ) { 
+	    my $params = $1 ;
+	    my $len    = length( $params ) ;
+	    $params =~ s/^\s+//g;
+	    $params =~ s/\s+$//g;
+	    my ( $from, $to ) = split( /\s/, $params ) ;
+	    my $number_of_lt  = $from - $to ;
+	    my $tmp = substr( $data, 
+			      $index_of_multiple_smart_html_encode, 
+			      length( 'multiple_smart_html_encode(' ) + $len + 1 , 
+			      '<' x $number_of_lt );
+	}
+
+    }
+
+    return $data ;
+    
+}
+    
+
 
 #################
 # IS_VALID_TREE #
@@ -184,6 +234,7 @@ sub is_valid_tree {
   
   _reset_sig_warn() ;
   return $found ;
+
 }
 
 ###############
@@ -392,7 +443,7 @@ sub _data {
       substr($tags , $po , $p1) = $cont ;
     }
     
-    # print STDERR "***$tag>> $args,$args_end,$tags,$cont,$stat_1 [@all_keys]\n" ;
+    ## print STDERR "***$tag>> $args,$args_end,$tags,$cont,$stat_1 [@all_keys]\n" ;
 
     if ($args_end ne '') {
       $args .= $args_end ;
@@ -531,6 +582,7 @@ sub _data {
     return $return_val ;
   }
 
+
   delete $$parsed{"$tree"} if ref($tree) ;
   _reset_sig_warn() ;
   return ;
@@ -563,6 +615,7 @@ sub _check_key {
     my $k = $_[0] ;
     $k =~ s/^[.:-]+//s ;
     $k =~ s/[^\w\:\.\-]+/_/gs ;
+    _reset_sig_warn() ;
     return( $k ) ;
   }
   my $return_val = $_[0] ;

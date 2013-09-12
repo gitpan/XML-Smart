@@ -20,8 +20,9 @@ use Carp                                                       ;
 use XML::Smart::Entity qw(_parse_basic_entity)                 ;
 use XML::Smart::Shared qw( _unset_sig_warn _reset_sig_warn )   ;
 
+
 our ($VERSION) ;
-$VERSION = '1.32' ;
+$VERSION = '1.34' ;
 
 my %PARSERS = (
     XML_Parser           => 0 ,
@@ -96,9 +97,10 @@ sub load_XML_Smart_HTMLParser {
 ########
 
 sub load {
+
   my ( $parser ) = @_ ;
   my $module ;
-  
+
   my $DEFAULT_LOADED  ;
 
   if ($parser) {
@@ -144,81 +146,207 @@ sub load {
 
 sub parse {
 
-  my $module = $_[1] ;
-  
-  my $data ;
-  {
-    my ($fh,$open) ;
+    my $module = $_[1] ;
     
-    if (ref($_[0]) eq 'GLOB') { $fh = $_[0] ;}
-    elsif ($_[0] =~ /^http:\/\/\w+[^\r\n]+$/s) { $data = &get_url($_[0]) ;}
-    elsif ($_[0] =~ /<.*?>/s) { $data = $_[0] ;}
-    else { 
-	open ($fh,$_[0]) or croak( $! ); binmode($fh) ; $open = 1 ;
+    my $data ;
+    {
+	my ($fh,$open) ;
+	
+	if (ref($_[0]) eq 'GLOB') { $fh = $_[0] ;}
+	elsif ($_[0] =~ /^http:\/\/\w+[^\r\n]+$/s) { $data = &get_url($_[0]) ;}
+	elsif ($_[0] =~ /<.*?>/s) { $data = $_[0] ;}
+	else { 
+	    open ($fh,$_[0]) or croak( $! ); binmode($fh) ; $open = 1 ;
+	}
+    
+	if ($fh) {
+	    no warnings ;
+	    1 while( read($fh, $data , 1024*8 , length($data) ) ) ;
+	    close($fh) if $open ;
+	}
     }
     
-    if ($fh) {
-	no warnings ;
-	1 while( read($fh, $data , 1024*8 , length($data) ) ) ;
-	close($fh) if $open ;
+    if ($data !~ /<.*?>/s) { return( {} ) ;}
+    
+    if (!$module || !$PARSERS{$module}) {
+	if    ( !$NO_XML_PARSER && $INC{'XML/Parser.pm'} && $PARSERS{XML_Parser}) { $module = 'XML_Parser' ;}
+	elsif ($PARSERS{XML_Smart_Parser}) { $module = 'XML_Smart_Parser' ;}
     }
-  }
   
-  if ($data !~ /<.*?>/s) { return( {} ) ;}
-  
-  if (!$module || !$PARSERS{$module}) {
-    if    ( !$NO_XML_PARSER && $INC{'XML/Parser.pm'} && $PARSERS{XML_Parser}) { $module = 'XML_Parser' ;}
-    elsif ($PARSERS{XML_Smart_Parser}) { $module = 'XML_Smart_Parser' ;}
-  }
-  
-  my $xml ;
-  if ($module eq 'XML_Parser') { $xml = XML::Parser->new() ;}
-  elsif ($module eq 'XML_Smart_Parser') { $xml = XML::Smart::Parser->new() ;}
-  elsif ($module eq 'XML_Smart_HTMLParser') { $xml = XML::Smart::HTMLParser->new() ;}
-  else { croak("Can't find a parser for XML!") ;}
-  
-  shift(@_) ;
-  if ( $_[0] && ( $_[0] =~ /^\s*(?:XML_\w+|html?|re\w+|smart)\s*$/i ) ) { shift(@_) ;}
-
-  _unset_sig_warn() ;
-  my ( %args ) = @_ ;
-  _reset_sig_warn() ;
-  
-  if ( $args{lowtag} ) { $xml->{SMART}{tag} = 1 ;}
-  if ( $args{upertag} ) { $xml->{SMART}{tag} = 2 ;}
-  if ( $args{lowarg} ) { $xml->{SMART}{arg} = 1 ;}
-  if ( $args{uperarg} ) { $xml->{SMART}{arg} = 2 ;}
-  if ( $args{arg_single} ) { $xml->{SMART}{arg_single} = 1 ;}  
-
-  if ( $args{no_order} ) { $xml->{SMART}{no_order} = 1 ;}
-  if ( $args{no_nodes} ) { $xml->{SMART}{no_nodes} = 1 ;}
-  
-  if ( $args{use_spaces} ) { $xml->{SMART}{use_spaces} = 1 ;}
-  
-  $xml->{SMART}{on_start} = $args{on_start} if ref($args{on_start}) eq 'CODE' ;
-  $xml->{SMART}{on_char}  = $args{on_char}  if ref($args{on_char})  eq 'CODE' ;
-  $xml->{SMART}{on_end}   = $args{on_end}   if ref($args{on_end})   eq 'CODE' ;
-  
-  $xml->setHandlers(
-  Init => \&_Init ,
-  Start => \&_Start ,
-  Char  => \&_Char ,
-  End   => \&_End ,
-  Final => \&_Final ,
-  ) ;
-
-  my $tree ;
-  eval { 
-      $tree = $xml->parse($data);
-  }; croak( $@ ) if( $@ );
-  return( $tree ) ;
+    my $xml ;
+    if ($module eq 'XML_Parser') { $xml = XML::Parser->new() ;}
+    elsif ($module eq 'XML_Smart_Parser') { $xml = XML::Smart::Parser->new() ;}
+    elsif ($module eq 'XML_Smart_HTMLParser') { $xml = XML::Smart::HTMLParser->new() ;}
+    else { croak("Can't find a parser for XML!") ;}
+    
+    shift(@_) ;
+    if ( $_[0] && ( $_[0] =~ /^\s*(?:XML_\w+|html?|re\w+|smart)\s*$/i ) ) { shift(@_) ;}
+    
+    _unset_sig_warn() ;
+    my ( %args ) = @_ ;
+    _reset_sig_warn() ;
+    
+    if ( $args{lowtag} ) { $xml->{SMART}{tag} = 1 ;}
+    if ( $args{upertag} ) { $xml->{SMART}{tag} = 2 ;}
+    if ( $args{lowarg} ) { $xml->{SMART}{arg} = 1 ;}
+    if ( $args{uperarg} ) { $xml->{SMART}{arg} = 2 ;}
+    if ( $args{arg_single} ) { $xml->{SMART}{arg_single} = 1 ;}  
+    
+    if ( $args{no_order} ) { $xml->{SMART}{no_order} = 1 ;}
+    if ( $args{no_nodes} ) { $xml->{SMART}{no_nodes} = 1 ;}
+    
+    if ( $args{use_spaces} ) { $xml->{SMART}{use_spaces} = 1 ;}
+    
+    $xml->{SMART}{on_start} = $args{on_start} if ref($args{on_start}) eq 'CODE' ;
+    $xml->{SMART}{on_char}  = $args{on_char}  if ref($args{on_char})  eq 'CODE' ;
+    $xml->{SMART}{on_end}   = $args{on_end}   if ref($args{on_end})   eq 'CODE' ;
+    
+    $xml->setHandlers(
+	Init => \&_Init ,
+	Start => \&_Start ,
+	Char  => \&_Char ,
+	End   => \&_End ,
+	Final => \&_Final ,
+	) ;
+    
+    my $tree ;
+    eval { 
+	$tree = $xml->parse($data);
+    }; croak( $@ ) if( $@ );
+    return( $tree ) ;
 }
+
+
+
+
+##################################################
+##            UNUSED - DEPRECATED.              ##
+##################################################
+
+sub _clean_data_with_lt { 
+
+    my $data = shift ;
+
+    my @data = split( //, $data ) ;
+    my $data_len = @data          ;
+    
+
+    # State Machine Definition: 
+
+    my %state_machine = 
+	(
+	 'in_cdata_block'            =>  0 ,
+	 'seen_some_tag'             =>  0 ,
+	 'need_to_cdata_this'        =>  0 ,
+	 'prev_lt'                   => -1 ,
+	 'last_tag_start'            => -1 ,
+	 'last_tag_close'            => -1 ,
+	 'tag_balance'               =>  0 ,
+	);
+	  
+
+    CHAR: for( my $index = 0; $index < $data_len; $index++ ) { 
+
+	{ 
+	    no warnings ;
+	    next CHAR unless( $data[ $index ] eq '<' or $data[ $index ] eq '>' ) ;
+	}
+
+	if( $data[ $index ] eq '<' ) { 
+
+	    next CHAR if( $state_machine{ 'in_cdata_block' } ) ;
+	    
+	    { 
+		# Check for possibility of this being a cdata block
+		my $possible_cdata_block = join( '', @data[ $index .. ( $index + 8 ) ] ) ;
+		if( $possible_cdata_block eq '<![CDATA[' ) { 
+		    $state_machine{ 'in_cdata_block' } = 1 ;
+		    next CHAR                              ;
+		}
+		
+	    }
+
+	    $state_machine{ 'tag_balance'    }++ ;
+	    $state_machine{ 'prev_lt' } = $index ;
+	    
+	    next CHAR if( $state_machine{ 'need_to_cdata_this' } ) ;
+	    	    
+	    unless( $state_machine{ 'seen_some_tag' } ) { 
+		$state_machine{ 'seen_some_tag' }  = 1      ;
+		$state_machine{ 'last_tag_start' } = $index ;
+		next CHAR                                   ;
+	    } 
+	    
+	    if( $state_machine{ 'tag_balance' } == 1 ) { 
+		$state_machine{ 'last_tag_start' } = $index ;
+		next CHAR ;
+	    }
+
+	    $state_machine{ 'need_to_cdata_this' } = 1 ;
+
+	    ## Seen a < and 
+	    #    1. We are not in a CDATA block
+	    #    2. This is not the start of a CDATA block
+
+
+	} elsif( $data[ $index ] eq '>' ) { 
+
+
+	    if( $state_machine{ 'in_cdata_block' } ) { 
+		
+		my $possible_cdata_close = join( '', @data[ ( $index - 2 ) .. $index ] ) ;
+		if( $possible_cdata_close eq ']]>' ) {
+		    $state_machine{ 'in_cdata_block' } = 0 ;
+		    $state_machine{ 'tag_balance'    } = 0 ;
+		    next CHAR                              ;
+		}
+		
+		next CHAR ;
+	    }
+	    
+	    unless( $state_machine{ 'seen_some_tag' } ) { 
+		croak " > found before < - Input XML seems to have errors!\n";
+	    }
+
+
+	    $state_machine{ 'tag_balance' }-- ;
+	    
+	    unless( $state_machine{ 'tag_balance' } ) { 
+		$state_machine{ 'last_tag_close' } = $index ;
+		next CHAR                                   ;
+	    }		
+	    
+
+	    ## Need to add CDATA now.
+
+	    my $last_tag_close = $state_machine{ 'last_tag_close' } ;
+	    my $prev_lt        = $state_machine{ 'prev_lt'        } ;
+	    $data[ $last_tag_close ] = '><![CDATA[' ;
+	    $data[ $prev_lt        ] = ']]><'       ;
+
+	    $state_machine{ 'last_tag_close'     } = $index ;
+	    $state_machine{ 'need_to_cdata_this' } = 0      ;
+
+	    $state_machine{ 'tag_balance'        } = 0      ;
+	    
+	}
+
+    }
+
+    $data = join( '', @data ) ;
+
+    return $data;
+
+}
+
 
 ###########
 # GET_URL #
 ###########
 
+
 sub get_url {
+    
   my ( $url ) = @_ ;
   my $data ;
   

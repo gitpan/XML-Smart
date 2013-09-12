@@ -30,18 +30,18 @@ use vars qw(@ISA)                                              ;
 use XML::Smart::Tie                                            ;
 use XML::Smart::Tree                                           ;
 
+
 =head1 NAME
 
 XML::Smart - A smart, easy and powerful way to access or create XML from fiels, data and URLs.
 
 =head1 VERSION
 
-Version 1.77
+Version 1.78
 
 =cut
 
-our $VERSION = '1.77' ;
-
+our $VERSION = '1.78' ;
 
 =head1 SYNOPSIS
 
@@ -61,7 +61,7 @@ load XML from the Web ( just by using an URL as the file path ) and has an easy
 way to send XML data through sockets - just adding the length of the data in
 the <?xml?> header.
 
-You can use I<XML::Smart> with L<XML::Parser>, or with the 2 standart parsers of
+You can use I<XML::Smart> with L<XML::Parser>, or with the 2 standard parsers of
 XML::Smart:
 
 =over 10
@@ -190,6 +190,7 @@ sub xpath_pointer { _load_xpath() ; &XML::Smart::XPath::xpath_pointer(@_) ;}
 sub XPath_pointer { _load_xpath() ; &XML::Smart::XPath::XPath_pointer(@_) ;}
 
 sub _load_xpath {
+
     require XML::Smart::XPath ;
     _unset_sig_warn() ;
     *xpath = \&XML::Smart::XPath::xpath ;
@@ -228,6 +229,7 @@ sub new {
 	code      => \&find_arg , 
 	) ;
 
+
     $$this->{ parser } = $parser ;
 
     $parser = &XML::Smart::Tree::load($parser) ;
@@ -251,6 +253,7 @@ sub new {
 #########
 
 sub clone {
+    
     my $saver = shift ;
     
     my ($pointer , $back , $array , $key , $i , $null_clone) ;
@@ -274,14 +277,14 @@ sub clone {
 	$i = shift ;
     }
     
-  my $clone = Object::MultiType->new(
-      boolsub   => \&boolean ,
-  scalarsub => \&content ,
-      tiearray  => 'XML::Smart::Tie::Array' ,
-      tiehash   => 'XML::Smart::Tie::Hash' ,
-      tieonuse  => 1 ,
-      code      => \&find_arg ,
-      ) ;
+    my $clone = Object::MultiType->new(
+	boolsub   => \&boolean ,
+	scalarsub => \&content ,
+	tiearray  => 'XML::Smart::Tie::Array' ,
+	tiehash   => 'XML::Smart::Tie::Hash' ,
+	tieonuse  => 1 ,
+	code      => \&find_arg ,
+	) ;
     bless($clone,__PACKAGE__) ;  
   
     if ( !$saver->is_saver ) { $saver = $$saver ;}
@@ -301,11 +304,12 @@ sub clone {
     if (!defined $key) { $key = $saver->{key} ;}
     if (!defined $i) { $i = $saver->{i} ;}
     
-  if (!$pointer) { $pointer = $saver->{point} ;}
+    if (!$pointer) { $pointer = $saver->{point} ;}
     
-    #my @call = caller ;
-    #print "CLONE>> $key , $i >> @{$saver->{keyprev}} >> @_\n" ;
-    
+    # my @call = caller ;
+    # print STDERR "CLONE>> $key , $i >> @{$saver->{keyprev}} >> @_\n" ;
+
+
     $$clone->{tree} = $saver->{tree} ;
     $$clone->{point} = $pointer ;
     $$clone->{back} = $back ;
@@ -327,7 +331,7 @@ sub clone {
     
     $$clone->{XPATH} = $saver->{XPATH} if $saver->{XPATH} ;
     
-  return( $clone ) ;
+    return( $clone ) ;
 
 }
 
@@ -336,9 +340,15 @@ sub clone {
 ###########
 
 sub boolean {
-  my $this = shift ;
-  if ( $this->null ) { return 0 ;}
-  return( 1 ) ;
+
+    my $this = shift ;
+    
+    if ( $this->null ) { 
+	return 0 ;
+    } else {
+	return 1 ;
+    }
+    
 }
 
 ########
@@ -346,10 +356,19 @@ sub boolean {
 ########
 
 sub null {
-  my $this = shift ;
-  if ( $$this->{null} ) { return 1 ;}
-  if ( (keys %{$$this->{tree}}) < 1 ) { return 1 ;}
-  return ;
+
+    my $this = shift ;
+
+    if( $$this->{null} ) { 
+	return 1 ;
+    }
+    
+    if( (keys %{$$this->{tree}}) < 1 ) { 
+	return 1 ;
+    }
+    
+    return ;
+
 }
 
 ########
@@ -357,23 +376,25 @@ sub null {
 ########
 
 sub base {
-  my $this = shift ;
-  
-  my $base = Object::MultiType->new(
-  boolsub   => \&boolean ,
-  scalarsub => \&content ,
-  tiearray  => 'XML::Smart::Tie::Array' ,
-  tiehash   => 'XML::Smart::Tie::Hash' ,
-  tieonuse  => 1 ,
-  code      => \&find_arg , 
-  ) ;
-  
-  bless($base,__PACKAGE__) ;
-  
-  $$base->{tree} = $this->tree ;
-  $$base->{point} = $$base->{tree} ;
-  
-  return( $base ) ;
+
+    my $this = shift ;
+    
+    my $base = Object::MultiType->new(
+	boolsub   => \&boolean ,
+	scalarsub => \&content ,
+	tiearray  => 'XML::Smart::Tie::Array' ,
+	tiehash   => 'XML::Smart::Tie::Hash' ,
+	tieonuse  => 1 ,
+	code      => \&find_arg , 
+	) ;
+    
+    bless($base,__PACKAGE__) ;
+    
+    $$base->{tree} = $this->tree ;
+    $$base->{point} = $$base->{tree} ;
+    
+    return( $base ) ;
+
 }
 
 ########
@@ -381,30 +402,42 @@ sub base {
 ########
 
 sub back {
-  my $this = shift ;
-  
-  my @tree ;
-  if( $$this->{keyprev} ) { 
-      @tree = @{$$this->{keyprev}} ;
-  }
-  if (!@tree) { return $this ;}
-  
-  my $last = pop(@tree) ;
-  my $i = 0 ;
-  if ($last =~ /^\[(\d+)\]$/) { $i = $1 ; $last = pop(@tree) ;}
-  
-  my $back = $this->base ;
-  
-  foreach my $tree_i ( @tree ) {
-    if ($tree_i =~ /^\[(\d+)\]$/) {
-      my $i = $1 ;
-      $back = $back->[$i] ;
+
+    my $this = shift ;
+    
+    my @tree ;
+    if( $$this->{keyprev} ) { 
+	@tree = @{$$this->{keyprev}} ;
     }
-    else { $back = $back->{$tree_i} ;}
-  }
-  
-  if ( wantarray ) { return( $back , $last , $i ) ;}
-  return( $back ) ;
+    
+    if( !@tree ) { 
+	return $this ;
+    }
+    
+    my $last = pop(@tree) ;
+    my $i = 0 ;
+    if( $last =~ /^\[(\d+)\]$/ ) { 
+	$i = $1 ; 
+	$last = pop(@tree) ;
+    }
+    
+    my $back = $this->base ;
+    
+    foreach my $tree_i ( @tree ) {
+	if ($tree_i =~ /^\[(\d+)\]$/) {
+	    my $i = $1 ;
+	    $back = $back->[$i] ;
+	} else { 
+	    $back = $back->{$tree_i} ;
+	}
+    }
+    
+    if ( wantarray ) { 
+	return( $back , $last , $i ) ;
+    }
+
+    return( $back ) ;
+
 }
 
 ########
@@ -412,17 +445,19 @@ sub back {
 ########
 
 sub path {
-  my $this = shift ;
-  my @tree = @{$$this->{keyprev}} ;
 
-  my $path ;
-  
-  foreach my $tree_i ( @tree ) {
-    $path .= '/' if $tree_i !~ /^\[\d+\]$/ ;
-    $path .= $tree_i ;
-  }
+    my $this = shift ;
+    my @tree = @{$$this->{keyprev}} ;
 
-  return $path ;
+    my $path ;
+    
+    foreach my $tree_i ( @tree ) {
+	$path .= '/' if $tree_i !~ /^\[\d+\]$/ ;
+	$path .= $tree_i ;
+    }
+    
+    return $path ;
+
 }
 
 #################
@@ -430,28 +465,31 @@ sub path {
 #################
 
 sub path_as_xpath {
-  my $this = shift ;
-  my @tree = @{$$this->{keyprev}} ;
 
-  my $path ;
-  
-  foreach my $tree_i ( @tree ) {
-    if ( $tree_i =~ /^\[(\d+)\]$/ ) {
-      my $i = $1 + 1 ;
-      $path .= "[$i]" ;
+    my $this = shift ;
+    my @tree = @{$$this->{keyprev}} ;
+    
+    my $path ;
+    
+    foreach my $tree_i ( @tree ) {
+	if ( $tree_i =~ /^\[(\d+)\]$/ ) {
+	    my $i = $1 + 1 ;
+	    $path .= "[$i]" ;
+	} else { 
+	    $path .= "/$tree_i" ;
+	}
     }
-    else { $path .= "/$tree_i" ;}
-  }
-  
-  $path =~ s/\[1\]$// ;
-  
-  my $t = $this->is_node ;
-  
-  if ( !$this->is_node ) {
-    $path =~ s/\/([^\/]+)$/\/\@$1/s ;
-  }
+    
+    $path =~ s/\[1\]$// ;
+    
+    my $t = $this->is_node ;
+    
+    if ( !$this->is_node ) {
+	$path =~ s/\/([^\/]+)$/\/\@$1/s ;
+    }
+    
+    return $path ;
 
-  return $path ;
 }
 
 ########
@@ -459,11 +497,13 @@ sub path_as_xpath {
 ########
 
 sub root {
-  my $this = shift ;
-  
-  my $root = ( $this->base->nodes_keys )[0] ;
 
-  return $root ;
+    my $this = shift ;
+    
+    my $root = ( $this->base->nodes_keys )[0] ;
+    
+    return $root ;
+
 }
 
 #######
@@ -471,16 +511,15 @@ sub root {
 #######
 
 sub key {
-  my $this = shift ;
-  my $k = @{$$this->{keyprev}}[ $#{$$this->{keyprev}} ] ;
-  #my $i = 0 ;
-  if ($k =~ /^\[(\d+)\]$/) {
-    #$i = $1 ;
-    $k = @{$$this->{keyprev}}[ $#{$$this->{keyprev}} -1 ] ;
-  }
-  
-  #if ( wantarray ) { return( $k , $i ) ;}
-  return $k ;
+
+    my $this = shift ;
+    my $k = @{$$this->{keyprev}}[ $#{$$this->{keyprev}} ] ;
+    if ($k =~ /^\[(\d+)\]$/) {
+	$k = @{$$this->{keyprev}}[ $#{$$this->{keyprev}} -1 ] ;
+    }
+    
+    return $k ;
+
 }
 
 #####
@@ -488,9 +527,11 @@ sub key {
 #####
 
 sub i {
-  my $this = shift ;
-  my $i = $$this->{i} ;
-  return $i ;
+
+    my $this = shift ;
+    my $i = $$this->{i} ;
+
+    return $i ;
 }
 
 ########
@@ -510,7 +551,7 @@ sub copy {
 	my @new_array = @old_array             ;
 	$$copy->{keyprev} = \@new_array        ;
     }
-
+    
     my ( $back , $key , $i ) = $copy->back ;
     
     _unset_sig_warn() ;
@@ -522,40 +563,6 @@ sub copy {
 
     return $copy ;
 
-
-
-    # my $copy = Object::MultiType->new(
-    # 	boolsub   => \&boolean ,
-    # 	scalarsub => \&content ,
-    # 	tiearray  => 'XML::Smart::Tie::Array' ,
-    # 	tiehash   => 'XML::Smart::Tie::Hash' ,
-    # 	tieonuse  => 1 ,
-    # 	code      => \&find_arg , 
-    # 	) ;
-    
-    # $$copy->{tree}    = &_copy_hash($this->tree) ;
-    # if( $$this->{keyprev} ) { 
-    # 	$$copy->{keyprev} = $$this->{keyprev} ;
-    # }
-
-    # ## The following line fixes copy issues
-    # $$copy->{ point  } = $$copy->{ tree   } ;
-    # $$copy->{ parser } = $$this->{ parser } ;
-    # my $parser = &XML::Smart::Tree::load( $$this->{ parser }) ;
-
-    # bless($copy, ref($this)) ;
-    
-    # my ( $back , $key , $i ) = $copy->back ;
-    
-    # _unset_sig_warn() ;
-    # if( $key ne '' ) {
-    # 	$copy = $back->{$key} ;
-    # 	$copy = $back->[$i] if $i ;
-    # }
-    # _reset_sig_warn() ;
-    
-    # return( $copy ) ;
-
 }
 
 ##############
@@ -564,34 +571,36 @@ sub copy {
 
 sub _copy_hash {
 
-  my ( $ref ) = @_ ;
-  my $copy ;
-  
-  if (ref $ref eq 'HASH') {
-    $copy = {} ;
-    foreach my $Key ( keys %$ref ) {
-      if (ref $$ref{$Key}) {
-        $$copy{$Key} =&_copy_hash($$ref{$Key}) ;
-      }
-      else { $$copy{$Key} = $$ref{$Key} ;}
+    my ( $ref ) = @_ ;
+    my $copy         ;
+    
+    if( ref $ref eq 'HASH' ) {
+	$copy = {} ;
+	foreach my $Key ( keys %$ref ) {
+	    if( ref $$ref{$Key} ) {
+		$$copy{$Key} =&_copy_hash($$ref{$Key}) ;
+	    } else { 
+		$$copy{$Key} = $$ref{$Key} ;
+	    }
+	}
+    } elsif( ref $ref eq 'ARRAY' ) {
+	$copy = [] ;
+	foreach my $i ( @$ref ) {
+	    if( ref $i ) {
+		push( @$copy, &_copy_hash($i) ) ;
+	    } else { 
+		push( @$copy, $i ) ;
+	    }
+	}
+    } elsif( ref $ref eq 'SCALAR' ) {
+	my $copy = $$ref ;
+	return( \$copy ) ;
+    } else { 
+	return( {} ) ;
     }
-  }
-  elsif (ref $ref eq 'ARRAY') {
-    $copy = [] ;
-    foreach my $i ( @$ref ) {
-      if (ref $i) {
-        push(@$copy , &_copy_hash($i) ) ;
-      }
-      else { push(@$copy , $i) ;}
-    }
-  }
-  elsif (ref $ref eq 'SCALAR') {
-    my $copy = $$ref ;
-    return( \$copy ) ;
-  }
-  else { return( {} ) ;}
-
-  return( $copy ) ;
+    
+    return( $copy ) ;
+    
 }
 
 ###########
@@ -599,7 +608,7 @@ sub _copy_hash {
 ###########
 
 sub tree_ok {
-  return _tree_ok_parse( &tree ) ;
+    return _tree_ok_parse( &tree ) ;
 }
 
 ##############
@@ -607,68 +616,82 @@ sub tree_ok {
 ##############
 
 sub pointer_ok {
-  return _tree_ok_parse( &pointer ) ;
+    return _tree_ok_parse( &pointer ) ;
 }
 
-sub tree_pointer_ok { &pointer_ok ;}
+sub tree_pointer_ok { 
+    &pointer_ok ;
+}
 
 ##################
 # _TREE_OK_PARSE #
 ##################
 
 sub _tree_ok_parse {
-  my ( $ref ) = @_ ;
-  my $copy ;
-  
-  if (ref $ref eq 'HASH') {
-    $copy = {} ;
-    foreach my $Key ( keys %$ref ) {
-      next if $Key eq '/order' || $Key eq '/nodes' || $Key =~ /\/\.CONTENT\// ;
-      if (ref $$ref{$Key}) {
-        $$copy{$Key} =&_tree_ok_parse($$ref{$Key}) ;
-      }
-      else { $$copy{$Key} = $$ref{$Key} ;}
-    }
-  }
-  elsif (ref $ref eq 'ARRAY') {
-    $copy = [] ;
-    foreach my $i ( @$ref ) {
-      if (ref $i) {
-        push(@$copy , &_tree_ok_parse($i) ) ;
-      }
-      else { push(@$copy , $i) ;}
-    }
-  }
-  elsif (ref $ref eq 'SCALAR') {
-    my $copy = $$ref ;
-    return( \$copy ) ;
-  }
-  else { return( {} ) ;}
 
-  return( $copy ) ;
+    my ( $ref ) = @_ ;
+    my $copy         ;
+  
+    if( ref $ref eq 'HASH' ) {
+	$copy = {} ;
+	foreach my $Key ( keys %$ref ) {
+	    next if $Key eq '/order' || $Key eq '/nodes' || $Key =~ /\/\.CONTENT\// ;
+	    if( ref $$ref{$Key} ) {
+		$$copy{$Key} =&_tree_ok_parse($$ref{$Key}) ;
+	    } else { 
+		$$copy{$Key} = $$ref{$Key} ;
+	    }
+	}
+    } elsif( ref $ref eq 'ARRAY' ) {
+	$copy = [] ;
+	foreach my $i ( @$ref ) {
+	    if( ref $i ) {
+		push( @$copy, &_tree_ok_parse($i) ) ;
+	    } else { 
+		push( @$copy, $i                  ) ;
+	    }
+	}
+    } elsif( ref $ref eq 'SCALAR' ) {
+	my $copy = $$ref ;
+	return( \$copy ) ;
+    } else { 
+	return( {} ) ;
+    }
+    
+    return( $copy ) ;
+
 }
 
 ########
 # TREE #
 ########
 
-sub tree { return( ${$_[0]}->{tree} ) ;}
-sub tree_pointer { &pointer ;}
+sub tree { 
+
+    my $hash_to_return = ${$_[0]}->{tree} ;
+    
+    return ( $hash_to_return ) ;
+    
+}
+
+sub tree_pointer { 
+    &pointer ;
+}
 
 #############
 # DUMP_TREE #
 #############
 
 sub dump_tree {
-  require Data::Dumper ;
-  local $Data::Dumper::Sortkeys = 1 ;
-  return Data::Dumper::Dumper( &tree ) ;
+    require Data::Dumper ;
+    local $Data::Dumper::Sortkeys = 1 ;
+    return Data::Dumper::Dumper( &tree ) ;
 }
 
 sub dump_tree_ok {
-  require Data::Dumper ;
-  local $Data::Dumper::Sortkeys = 1 ;
-  return Data::Dumper::Dumper( &tree_ok ) ;
+    require Data::Dumper ;
+    local $Data::Dumper::Sortkeys = 1 ;
+    return Data::Dumper::Dumper( &tree_ok ) ;
 }
 
 
@@ -677,28 +700,41 @@ sub dump_tree_ok {
 ################
 
 sub dump_pointer {
-  require Data::Dumper ;
-  local $Data::Dumper::Sortkeys = 1 ;
-  return Data::Dumper::Dumper( &pointer ) ;
+    require Data::Dumper ;
+    local $Data::Dumper::Sortkeys = 1 ;
+    return Data::Dumper::Dumper( &pointer ) ;
 }
 
 sub dump_pointer_ok {
-  require Data::Dumper ;
-  local $Data::Dumper::Sortkeys = 1 ;
-  return Data::Dumper::Dumper( &pointer_ok ) ;
+    require Data::Dumper ;
+    local $Data::Dumper::Sortkeys = 1 ;
+    return Data::Dumper::Dumper( &pointer_ok ) ;
 }
 
 
-sub dump_tree_pointer { &dump_pointer ;}
-sub dump_tree_pointer_ok { &dump_pointer_ok ;}
+sub dump_tree_pointer { 
+    &dump_pointer ;
+}
+
+sub dump_tree_pointer_ok { 
+    &dump_pointer_ok ;
+}
 
 ###########
 # POINTER #
 ###########
 
 sub pointer {
-  if ( ${$_[0]}->{content} ) { return ${${$_[0]}->{content}} ;}
-  return( ${$_[0]}->{point} ) ;
+    
+    my $hash_to_return ;
+    
+    if ( ${$_[0]}->{content} ) { 
+	$hash_to_return = ${${$_[0]}->{content}} ;
+    } else {
+	$hash_to_return = ${$_[0]}->{point}      ;
+    }
+    
+    return ( $hash_to_return ) ;
 }
 
 ############
@@ -706,14 +742,18 @@ sub pointer {
 ############
 
 sub cut_root {
-  my $this = shift ;
 
-  my @nodes = $this->nodes_keys ;
+    my $this = shift ;
+    
+    my @nodes = $this->nodes_keys ;
+    
+    if( $#nodes > 0 ) { 
+	return $this ;
+    }
+    
+    my $root = $nodes[0] ;
+    return( $this->{$root} ) ;
 
-  if ($#nodes > 0) { return $this ;}
-  
-  my $root = $nodes[0] ;
-  return( $this->{$root} ) ;
 }
 
 ###########
@@ -721,15 +761,17 @@ sub cut_root {
 ###########
 
 sub is_node {
-  my $this = shift ;
-  return if $this->null ;
-  
-  my $key = $this->key ;
-  
-  my $back = $this->back ;
-  
-  return 1 if ($back->{'/nodes'}{$key} || $back->{$key}->nodes_keys) ;
-  return undef ;
+
+    my $this = shift ;
+
+    return if $this->null ;
+    
+    my $key  = $this->key  ;
+    my $back = $this->back ;
+    
+    return 1 if( $back->{'/nodes'}{$key} || $back->{$key}->nodes_keys ) ;
+    return undef ;
+    
 }
 
 ########
@@ -737,23 +779,32 @@ sub is_node {
 ########
 
 sub args {
-  my $this = shift ;
-  return () if $this->null ;
-  
-  my @args ;
 
-  my $nodes = $this->back->{'/nodes'} ;
-  my $pointer = $$this->{point} ;
-  
-  foreach my $Key ( keys %$this ) {
-    if ( !$$nodes{$Key} ) {
-      if ( (!ref $$pointer{$Key}) || (ref($$pointer{$Key}) eq 'HASH') || (ref($$pointer{$Key}) eq 'ARRAY' && $#{$$pointer{$Key}} == 0) ) {
-        push(@args , $Key) ;
-      }
+    my $this = shift ;
+
+    return () if $this->null ;
+    
+    my @args ;
+    
+    my $nodes   = $this->back->{'/nodes'} ;
+    my $pointer = $$this->{point}         ;
+    
+    foreach my $Key ( keys %$this ) {
+
+	next if( $$nodes{$Key} ) ;
+
+	if( 
+	    ( !ref $$pointer{ $Key} ) || 
+	    ( ref( $$pointer{ $Key} ) eq 'HASH') || 
+	    ( ref( $$pointer{ $Key} ) eq 'ARRAY' && $#{$$pointer{$Key}} == 0 ) 
+	    ) {
+	    
+	    push(@args , $Key) ;
+	    
+	}
     }
-  }
-
-  return @args ;
+    
+    return @args ;
 }
 
 ###############
@@ -761,19 +812,21 @@ sub args {
 ###############
 
 sub args_values {
-  my $this = shift ;
-  
-  return () if $this->null ;
-  
-  my @args = $this->args ;
 
-  my @values ;
-  
-  foreach my $args_i ( @args ) {
-    push(@values , $this->{$args_i}) ;
-  }
-  
-  return @values ;
+    my $this = shift ;
+    
+    return () if $this->null ;
+    
+    my @args = $this->args ;
+    
+    my @values ;
+    
+    foreach my $args_i ( @args ) {
+	push( @values, $this->{$args_i} ) ;
+    }
+    
+    return @values ;
+    
 }
 
 #########
@@ -781,30 +834,37 @@ sub args_values {
 #########
 
 sub nodes {
-  my $this = shift ;
 
-  return () if $this->null ;
+    my $this = shift ;
     
-  my $nodes = $this->{'/nodes'}->pointer ;
-  my $pointer = $$this->{point} ;
-  
-  my @nodes ;
-  
-  foreach my $Key ( keys %$this ) {
-    if ( $$nodes{$Key} || (ref($$pointer{$Key}) eq 'HASH') || (ref($$pointer{$Key}) eq 'ARRAY' && $#{$$pointer{$Key}} > 0)  ) {
-      if (ref($$pointer{$Key}) eq 'ARRAY') {
-        my $n = $#{$$pointer{$Key}} ;
-        for my $i (0..$n) {
-          push(@nodes , $this->{$Key}[$i]) ;
-        }
-      }
-      else {
-        push(@nodes , $this->{$Key}[0]) ;
-      }
-    }
-  }
+    return () if $this->null ;
+    
+    my $nodes   = $this->{'/nodes'}->pointer ;
+    my $pointer = $$this->{point}            ;
+    
+    my @nodes ;
+    
+    foreach my $Key ( keys %$this ) {
 
-  return @nodes ;
+	if( 
+	    $$nodes{$Key} || 
+	    (ref($$pointer{$Key}) eq 'HASH') || 
+	    (ref($$pointer{$Key}) eq 'ARRAY' && $#{$$pointer{$Key}} > 0)  
+	    ) {
+
+	    if( ref($$pointer{$Key}) eq 'ARRAY' ) {
+		my $n = $#{$$pointer{$Key}} ;
+		for my $i (0..$n) {
+		    push( @nodes, $this->{$Key}[$i] ) ;
+		}
+	    } else {
+		push( @nodes, $this->{$Key}[0] ) ;
+	    }
+	}
+    }
+    
+    return @nodes ;
+
 }
 
 ##############
@@ -813,22 +873,26 @@ sub nodes {
 
 sub nodes_keys {
 
-  my $this = shift ;
-  
-  return () if $this->null ;
-
-
-  my $nodes = $this->{'/nodes'}->pointer ;
-  my $pointer = $$this->{point} ;
-
-  my @nodes ;
-  foreach my $Key ( keys %$this ) {
-    if ( $$nodes{$Key} || (ref($$pointer{$Key}) eq 'HASH') || (ref($$pointer{$Key}) eq 'ARRAY' && $#{$$pointer{$Key}} > 0)  ) {
-      push(@nodes , $Key) ;
+    my $this = shift ;
+    
+    return () if $this->null ;
+    
+    
+    my $nodes   = $this->{'/nodes'}->pointer ;
+    my $pointer = $$this->{point}            ;
+    
+    my @nodes ;
+    foreach my $Key ( keys %$this ) {
+	if( 
+	    $$nodes{$Key} || 
+	    (ref($$pointer{$Key}) eq 'HASH') || 
+	    (ref($$pointer{$Key}) eq 'ARRAY' && $#{$$pointer{$Key}} > 0)  
+	    ) {
+	    push(@nodes , $Key) ;
+	}
     }
-  }
-
-  return @nodes ;
+    
+    return @nodes ;
 }
 
 ############
@@ -836,61 +900,68 @@ sub nodes_keys {
 ############
 
 sub set_node {
-  my $this = shift ;
-  my ( $bool ) = @_ ;
-  if ( !@_ ) { $bool = 1 ;}
-  
-  my $key = $this->key ;
-  
-  my $back = $this->back ;
-  
-  $back->{'/nodes'} = {} if $back->{'/nodes'}->null ;
-  my $nodes = $back->{'/nodes'}->pointer ;
-  
-  if ( $bool ) {
 
-      if ( $$nodes{$key} && $$nodes{$key} =~ /^(\w+,\d+),(\d*)/ ) { 
-	  $$nodes{$key} = "$1,1" ;
-      }else { 
-	  $$nodes{$key} = 1 ;
-      }
-      
-      if ( !$this->{CONTENT} ) {
-	  my $content = $this->content ;
-	  $this->{CONTENT} = $content if $content ne '' ;
-      }
-  } else {
-      delete $$nodes{$key} ;
-      my @keys = keys %$this ;
-      if ( $#keys == 0 && $keys[0] eq 'CONTENT') {
-	  my $content = !$this->{CONTENT}->null ? $this->{CONTENT}('.') : $this->content ;
-	  $this->back->pointer->{$key} = $content ;
+    my $this     = shift ;
+    my ( $bool ) = @_    ;
+    
+    if( !@_ ) { 
+	$bool = 1 ;
     }
-  }
-  
+    
+    my $key  = $this->key  ;
+    my $back = $this->back ;
+    
+    $back->{'/nodes'} = {} if( $back->{'/nodes'}->null ) ;
+    my $nodes = $back->{'/nodes'}->pointer ;
+    
+    if( $bool ) {
+
+	if( $$nodes{$key} && $$nodes{$key} =~ /^(\w+,\d+),(\d*)/ ) { 
+	    $$nodes{$key} = "$1,1" ;
+	} else { 
+	    $$nodes{$key} = 1      ;
+	}
+      
+	if ( !$this->{CONTENT} ) {
+	    my $content = $this->content ;
+	    $this->{CONTENT} = $content if $content ne '' ;
+	}
+
+    } else {
+	
+	delete $$nodes{$key} ;
+	my @keys = keys %$this ;
+	if( $#keys == 0 && $keys[0] eq 'CONTENT' ) {
+	    my $content = ( !$this->{CONTENT}->null ) ? $this->{CONTENT}('.') : $this->content ;
+	    $this->back->pointer->{$key} = $content ;
+	}
+    }
+    
 }
 
 ###########
 # SET_TAG #
 ###########
 
-sub set_tag { &set_node ;}
+sub set_tag { 
+    &set_node ;
+}
 
 #############
 # SET_ORDER #
 #############
 
 sub set_order {
-  my $this    = shift           ;
-  my $pointer = $$this->{point} ;
-  @{$$pointer{'/order'}} = @_   ;
+    my $this    = shift           ;
+    my $pointer = $$this->{point} ;
+    @{$$pointer{'/order'}} = @_   ;
 }
 
 sub order {
-  my $this = shift ;
-  my $pointer = $$this->{point} ;
-  return @{$$pointer{'/order'}} if defined $$pointer{'/order'} && ref($$pointer{'/order'}) eq 'ARRAY' ;
-  return() ;
+    my $this = shift ;
+    my $pointer = $$this->{point} ;
+    return @{$$pointer{'/order'}} if defined $$pointer{'/order'} && ref($$pointer{'/order'}) eq 'ARRAY' ;
+    return() ;
 }
 
 #############
@@ -900,18 +971,21 @@ sub order {
 sub set_node_type {
 
     my $this = shift ;
-    my ( $type , $bool ) = @_ ;
-    if ( $#_ < 1 ) { $bool = 1 ;}
+
+    my ( $type, $bool ) = @_ ;
+    if( $#_ < 1 ) { 
+	$bool = 1 ;
+    }
     
-    my $key = $this->key ;
-    
+    my $key  = $this->key  ;
     my $back = $this->back ;
     
-    $back->{'/nodes'} = {} if $back->{'/nodes'}->null ;
+    $back->{'/nodes'} = {} if( $back->{'/nodes'}->null );
     my $nodes = $back->{'/nodes'}->pointer ;
     
-    if ( $bool ) {
-	if ( $$nodes{$key} && $$nodes{$key} =~ /^\w+,\d+,(\d*)/ ) {
+    if( $bool ) {
+
+	if( $$nodes{$key} && $$nodes{$key} =~ /^\w+,\d+,(\d*)/ ) {
 	    my $val = $1                   ;
 	    $$nodes{$key} = "$type,1,$val" ;
 	} else { 
@@ -919,27 +993,33 @@ sub set_node_type {
 	    $$nodes{$key} = "$type,1," . $existing_node_data ;
 	}
 	
-	if ( !$this->{CONTENT} ) {
+	if( !$this->{CONTENT} ) {
 	    my $content = $this->content ;
 	    $this->{CONTENT} = $content if $content ne '' ;
 	}
-    }
-    else {
-	if ( !$$nodes{$key} ) {
+
+    } else {
+
+	if( !$$nodes{$key} ) {
 	    my $tp = _data_type( $back->{$key} ) ;
 	    if ( $tp > 2 ) { $$nodes{$key} = "$type,0," ;}
-	}
-	elsif ( $$nodes{$key} eq '1' ) { $$nodes{$key} = "$type,0,1" ;}
-	elsif ( $$nodes{$key} =~ /^\w+,\d+,1/ ) { $$nodes{$key} = "$type,0,1" ;}
-	elsif ( $$nodes{$key} =~ /^\w+,\d+,0?$/ ) {
+	} elsif( $$nodes{$key} eq '1' ) { 
+	    $$nodes{$key} = "$type,0,1" ;
+	} elsif( $$nodes{$key} =~ /^\w+,\d+,1/ ) { 
+	    $$nodes{$key} = "$type,0,1" ;
+	} elsif( $$nodes{$key} =~ /^\w+,\d+,0?$/ ) {
+
 	    delete $$nodes{$key} ;
 	    my @keys = keys %$this ;
-	    if ( $#keys == 0 && $keys[0] eq 'CONTENT') {
+
+	    if( $#keys == 0 && $keys[0] eq 'CONTENT') {
 		my $content = $this->{CONTENT}('.') ;
 		$this->back->pointer->{$key} = $content ;
 	    }
+
 	}
     }
+    
 }
 
 #############
@@ -947,8 +1027,8 @@ sub set_node_type {
 #############
 
 sub set_cdata {
-  my $this = shift ;
-  $this->set_node_type('cdata',@_) ;
+    my $this = shift ;
+    $this->set_node_type('cdata',@_) ;
 }
 
 ##############
@@ -956,8 +1036,8 @@ sub set_cdata {
 ##############
 
 sub set_binary {
-  my $this = shift ;
-  $this->set_node_type('binary',@_) ;
+    my $this = shift ;
+    $this->set_node_type('binary',@_) ;
 }
 
 #################
@@ -965,24 +1045,31 @@ sub set_binary {
 #################
 
 sub set_auto_node {
-  my $this = shift ;
-  
-  my $key = $this->key ;
-  my $back = $this->back ;
-  
-  $back->{'/nodes'} = {} if $back->{'/nodes'}->null ;
-  my $nodes = $back->{'/nodes'}->pointer ;
-  
-  if ( !$$nodes{$key} || $$nodes{$key} eq '1' ) { ; }
-  elsif ( $$nodes{$key} =~ /^\w+,\d+,1/ ) { $$nodes{$key} = 1 ;}
-  elsif ( $$nodes{$key} =~ /^\w+,\d+,0?$/ ) {
-    delete $$nodes{$key} ;
-    my @keys = keys %$this ;
-    if ( $#keys == 0 && $keys[0] eq 'CONTENT') {
-      my $content = $this->{CONTENT}('.') ;
-      $this->back->pointer->{$key} = $content ;
+
+    my $this = shift ;
+    
+    my $key  = $this->key  ;
+    my $back = $this->back ;
+    
+    $back->{'/nodes'} = {} if( $back->{'/nodes'}->null );
+    my $nodes = $back->{'/nodes'}->pointer ;
+    
+    if( !$$nodes{$key} || $$nodes{$key} eq '1' ) { 
+	# Do nothing. ; 
+    } elsif( $$nodes{$key} =~ /^\w+,\d+,1/   ) { 
+	$$nodes{$key} = 1 ;
+    } elsif( $$nodes{$key} =~ /^\w+,\d+,0?$/ ) {
+
+	delete $$nodes{$key} ;
+	my @keys = keys %$this ;
+
+	if( $#keys == 0 && $keys[0] eq 'CONTENT') {
+	    my $content = $this->{CONTENT}('.') ;
+	    $this->back->pointer->{$key} = $content ;
+	}
+
     }
-  }
+
 }
 
 ############
@@ -990,20 +1077,22 @@ sub set_auto_node {
 ############
 
 sub set_auto {
-  my $this = shift ;
-  
-  my $key = $this->key ;
-  my $back = $this->back ;
-  
-  $back->{'/nodes'} = {} if $back->{'/nodes'}->null ;
-  my $nodes = $back->{'/nodes'}->pointer ;
-  
-  delete $$nodes{$key} ;
-  my @keys = keys %$this ;
-  if ( $#keys == 0 && $keys[0] eq 'CONTENT') {
-    my $content = $this->{CONTENT}('.') ;
-    $this->back->pointer->{$key} = $content ;
-  }
+    
+    my $this = shift ;
+    
+    my $key  = $this->key  ;
+    my $back = $this->back ;
+    
+    $back->{'/nodes'} = {} if $back->{'/nodes'}->null ;
+    my $nodes = $back->{'/nodes'}->pointer ;
+    
+    delete $$nodes{$key} ;
+    my @keys = keys %$this ;
+    if( $#keys == 0 && $keys[0] eq 'CONTENT') {
+	my $content = $this->{CONTENT}('.') ;
+	$this->back->pointer->{$key} = $content ;
+    }
+
 }
 
 ##############
@@ -1028,12 +1117,18 @@ sub _data_type {
 	0xbd, 0xbe, 0xbf, 0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7, 0xc8, 0xc9, 0xca, 0xcb, 0xcc, 0xcd, 0xce, 
 	0xcf, 0xd0, 0xd1, 0xd2, 0xd3, 0xd4, 0xd5, 0xd6, 0xd7, 0xd8, 0xd9, 0xda, 0xdb, 0xdc, 0xdd, 0xde, 0xdf, 0xe0, 
 	0xe1, 0xe2, 0xe3, 0xe4, 0xe5, 0xe6, 0xe7, 0xe8, 0xe9, 0xea, 0xeb, 0xec, 0xed, 0xee, 0xef, 0xf0, 0xf1, 0xf2, 
-	0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff, 0x20
+	0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff, 0x20, 
 	);
 
-    my $bin_string = join( '', ( map( pack("H*", $_), @bin_data ) ) ) ;
 
-    return 4 if( $data && $data =~ /[^\w\d\s!"#\$\%&'\(\)\*\+,\-\.\/:;<=>\?\@\[\\\]\^\`\{\|}~~$bin_string]/s )   ;
+    my $bin_string = join( '', ( map( pack("H*", $_), @bin_data ) ) ) ;
+    
+    return 4 if( $data && ( 
+		     $data =~ /[^\w\d\s!"#\$\%&'\(\)\*\+,\-\.\/:;<=>\?\@\[\\\]\^\`\{\|}~~$bin_string]/s 
+		     or 
+		     $data =~ /(\240|\351|\361|\363|\341|\374|\340|\350|\366|\343|\355|\366|\344|\372|\364|\324|\301|\342)/s 
+		 )
+	) ;
     return 3 if( $data && $data =~ /<.*?>/s    ) ;
     return 2 if( $data && $data =~ /[\r\n\t]/s ) ;
     return 1                                     ;
@@ -1044,223 +1139,292 @@ sub _data_type {
 #######
 
 sub ret {
-  my $this = shift ;
-  my $type = shift ;
-  
-  if ($type =~ /^\s*<xml>\s*$/si ) {
-    return $this->data_pointer( noheader => 1 ) ;
-  }
-  
-  my @ret ;
-  $type =~ s/[^<\$\@\%\.k]//gs ;
-  
-  if ($type =~ /^</) {
-    $type =~ s/^<+// ;    
-    
-    my ($back , $key , $i) = $this->back ;
 
-    if    ($type =~ /\$$/) { @ret = $back->{$key}[$i]->content ;}
-    elsif ($type =~ /\@$/) {
-      @ret = @{$back} ;
-      foreach my $ret_i ( @ret ) {
-        $ret_i = $ret_i->{$key}[$i] ;
-      }
-    }
-    elsif ($type =~ /\%$/) { @ret = %{$back->{$key}[$i]} ;}
-  }
-  else {
-    if ( $this->null ) { return ;}
+    my $this = shift ;
+    my $type = shift ;
     
-    if    ($type =~ /\$$/) { @ret = $this->content ;}
-    elsif ($type =~ /\@$/) { @ret = @{$this} ;}
-    elsif ($type =~ /\%$/) { @ret = %{$this} ;}
-    elsif ($type =~ /\.$/) { @ret = $this->pointer ;}
-    elsif ($type =~ /[\@\%]k$/) {
-      my @keys = keys %{$this} ;
-      foreach my $key ( @keys ) {
-        my $n = $#{ $this->{$key} } ;
-        if ($n > 0) {
-          my @multi = ($key) x ($n+1) ;
-          push(@ret , @multi) ;
-        }
-        else { push(@ret , $key) ;}
-      }
+    if ($type =~ /^\s*<xml>\s*$/si ) {
+	return $this->data_pointer( noheader => 1 ) ;
     }
-  }
-  
-  if ($type =~ /^\$./) {
-    foreach my $ret_i ( @ret ) {
-      if (ref($ret_i) eq 'XML::Smart') { $ret_i = $ret_i->content ;}
+    
+    my @ret ;
+    $type =~ s/[^<\$\@\%\.k]//gs ;
+    
+    if ($type =~ /^</) {
+	$type =~ s/^<+// ;    
+	
+	my ($back , $key , $i) = $this->back ;
+	
+	if(     $type =~ /\$$/  ) { 
+	    @ret = $back->{$key}[$i]->content ;
+	} elsif( $type =~ /\@$/ ) {
+
+	    @ret = @{$back} ;
+
+	    foreach my $ret_i ( @ret ) {
+		$ret_i = $ret_i->{$key}[$i] ;
+	    }
+	    
+	} elsif( $type =~ /\%$/ ) { 
+	    @ret = %{$back->{$key}[$i]} ;
+	}
+    } else {
+
+	if( $this->null ) { 
+	    return ;
+	}
+	
+	if    ($type =~ /\$$/) { @ret = $this->content ; }
+	elsif ($type =~ /\@$/) { @ret = @{$this}       ; }
+	elsif ($type =~ /\%$/) { @ret = %{$this}       ; }
+	elsif ($type =~ /\.$/) { @ret = $this->pointer ; }
+	elsif ($type =~ /[\@\%]k$/) {
+
+	    my @keys = keys %{$this} ;
+
+	    foreach my $key ( @keys ) {
+		my $n = $#{ $this->{$key} } ;
+		if ($n > 0) {
+		    my @multi = ($key) x ($n+1) ;
+		    push(@ret , @multi) ;
+		} else { 
+		    push(@ret , $key) ;
+		}
+	    }
+
+	}
     }
-  }
-  
-  if ( wantarray ) { return( @ret ) ;}
-  return $ret[0] ;
+    
+    if( $type =~ /^\$./ ) {
+	foreach my $ret_i ( @ret ) {
+	    if(ref($ret_i) eq 'XML::Smart') { 
+		$ret_i = $ret_i->content ;
+	    }
+	}
+    }
+    
+
+    if( wantarray ) { 
+	return( @ret ) ;
+    }
+    return $ret[0] ;
+
 }
 
 ########
 # FIND #
 ########
 
-sub find { &find_arg } ;
+sub find { 
+    &find_arg 
+} 
 
 ############
 # FIND_ARG #
 ############
 
 sub find_arg {
-  my $this = shift ;
-  if ($#_ == 0 && ref($_[0]) ne 'ARRAY') { return $this->ret(@_) ;}
-  if ($#_ == 1 && $_[0] eq '[@]') {
-    my $arg = $_[1] ;
-    return $this->{$arg}('<@') ;
-  }
+
+    my $this = shift ;
+    if( $#_ == 0 && ref($_[0]) ne 'ARRAY' ) { 
+	return $this->ret(@_) ;
+    }
     
-  my @search ;
-  
-  for(my $i = 0 ; $i <= $#_ ; ++$i) {
-    if (ref($_[$i]) eq 'ARRAY') { push(@search , $_[$i]) ;}
-    elsif (ref($_[$i]) ne 'ARRAY' && ref($_[$i+1]) ne 'ARRAY' && ref($_[$i+2]) ne 'ARRAY') {
-      push(@search , [$_[$i] , $_[$i+1] , $_[$i+2]]) ;
-      $i += 2 ;
+    if( $#_ == 1 && $_[0] eq '[@]'        ) {
+	my $arg = $_[1] ;
+	return $this->{$arg}('<@') ;
     }
-  }
+    
+    my @search ;
   
-  #use Data::Dumper ; print Dumper(\@search);
-  #print "*** @search\n" ;
-  
-  if ( !@search ) { return ;}
-
-  my $key = $$this->{key} ;
-
-  my @hashes ;
-  
-  if (ref($$this->{array})) {
-    push(@hashes , @{$$this->{array}}) ;
-  }
-  else {
-    push(@hashes , $$this->{point}) ;
-    if (ref $$this->{point} eq 'HASH') {
-      foreach my $k ( sort keys %{$$this->{point}} ) {
-        push(@hashes , [$k,$$this->{point}{$k}]) if ref($$this->{point}{$k}) eq 'HASH' ;
-      }
+    for( my $i = 0; $i <= $#_ ; ++$i ) {
+	if( ref($_[$i]) eq 'ARRAY' ) { 
+	    push(@search , $_[$i]) ;
+	} elsif( ref($_[$i]) ne 'ARRAY' && ref($_[$i+1]) ne 'ARRAY' && ref($_[$i+2]) ne 'ARRAY' ) {
+	    push(@search , [$_[$i] , $_[$i+1] , $_[$i+2]]) ;
+	    $i += 2 ;
+	}
     }
-  }
-
-  my $i = -1 ;
-  my (@hash , @i) ;
-  my $notwant = !wantarray ;
-  
-  foreach my $hash_i ( @hashes ) {
-    foreach my $search_i ( @search ) {
-      my ($name , $type , $value) = @{$search_i} ;
-      $type =~ s/\s//gs ;
-
-      $i++ ;
-      my $hash ;
-      if (ref $hash_i eq 'ARRAY') { $hash = @$hash_i[1] ;}
-      else { $hash = $hash_i ;}
-      
-      my $data ;
-      if ($name =~ /^content$/i) { $name = 'CONTENT' ;}
-      $data = ref($hash) eq 'HASH' ? $$hash{$name} : $hash ;
-      $data = $$data{CONTENT} if ref($data) eq 'HASH' ;
-      
-      _unset_sig_warn() ;
-      if    ($type eq 'eq'  && $data eq $value)     { push(@hash,$hash_i) ; push(@i,$i) ; last ;}
-      elsif ($type eq 'ne'  && $data ne $value)     { push(@hash,$hash_i) ; push(@i,$i) ; last ;}
-      elsif ($type eq '=='  && $data == $value)     { push(@hash,$hash_i) ; push(@i,$i) ; last ;}
-      elsif ($type eq '!='  && $data != $value)     { push(@hash,$hash_i) ; push(@i,$i) ; last ;}
-      elsif ($type eq '<='  && $data <= $value)     { push(@hash,$hash_i) ; push(@i,$i) ; last ;}
-      elsif ($type eq '>='  && $data >= $value)     { push(@hash,$hash_i) ; push(@i,$i) ; last ;}
-      elsif ($type eq '<'   && $data <  $value)     { push(@hash,$hash_i) ; push(@i,$i) ; last ;}
-      elsif ($type eq '>'   && $data >  $value)     { push(@hash,$hash_i) ; push(@i,$i) ; last ;}
-      elsif ($type eq '=~'  && $data =~ /$value/s)  { push(@hash,$hash_i) ; push(@i,$i) ; last ;}
-      elsif ($type eq '=~i' && $data =~ /$value/is) { push(@hash,$hash_i) ; push(@i,$i) ; last ;}
-      elsif ($type eq '!~'  && $data !~ /$value/s)  { push(@hash,$hash_i) ; push(@i,$i) ; last ;}
-      elsif ($type eq '!~i' && $data !~ /$value/is) { push(@hash,$hash_i) ; push(@i,$i) ; last ;}
-      _reset_sig_warn() ;
+    
+    #use Data::Dumper ; print Dumper(\@search);
+    #print "*** @search\n" ;
+    
+    if ( !@search ) { 
+	return ;
     }
+    
+    my $key = $$this->{key} ;
+    
+    my @hashes ;
+    
+    if( ref($$this->{array}) ) {
+	push( @hashes, @{$$this->{array}} ) ;
+    } else {
 
-    if ($notwant && @hash) { last ;}
-  }
-                           
-  my $back = $$this->{back} ;
-  
-  #print "FIND>> @{$$this->{keyprev}} >> $i\n" ;
-  
-  if (@hash) {
-    if ($notwant) {
-      my ($k,$hash) = (undef) ;
-      if (ref $hash[0] eq 'ARRAY') { ($k,$hash) = @{$hash[0]} ;}
-      else { $hash = $hash[0] ;}
-      return &XML::Smart::clone($this,$hash,$back,undef, $k,$i[0]) ;
+	push( @hashes, $$this->{point}    ) ;
+
+	if( ref $$this->{point} eq 'HASH' ) {
+	    foreach my $k ( sort keys %{$$this->{point}} ) {
+		push( @hashes, [$k,$$this->{point}{$k}]) if( ref($$this->{point}{$k}) eq 'HASH' ) ;
+	    }
+	}
     }
-    else {
-      my $c = -1 ;
-      foreach my $hash_i ( @hash ) {
-        $c++ ;
-        my ($k,$hash) = (undef) ;
-        if (ref $hash_i eq 'ARRAY') { ($k,$hash) = @{$hash_i} ;}
-        else { $hash = $hash_i ;}        
-        $hash_i = &XML::Smart::clone($this,$hash,$back,undef, $k,$i[$c]) ;
-      }
-      return( @hash ) ;
+    
+    my $i = -1 ;
+    my (@hash , @i) ;
+    my $notwant = !wantarray ;
+    
+    foreach my $hash_i ( @hashes ) {
+
+	foreach my $search_i ( @search ) {
+
+	    my ($name , $type , $value) = @{$search_i} ;
+	    $type =~ s/\s//gs ;
+	    
+	    $i++ ;
+	    my $hash ;
+	    if (ref $hash_i eq 'ARRAY') { $hash = @$hash_i[1] ;}
+	    else { $hash = $hash_i ;}
+	    
+	    my $data ;
+	    if ($name =~ /^content$/i) { $name = 'CONTENT' ;}
+	    $data = ref($hash) eq 'HASH' ? $$hash{$name} : $hash ;
+	    $data = $$data{CONTENT} if ref($data) eq 'HASH' ;
+	    
+	    _unset_sig_warn() ;
+	    if    ($type eq 'eq'  && $data eq $value)     { push(@hash,$hash_i) ; push(@i,$i) ; last ;}
+	    elsif ($type eq 'ne'  && $data ne $value)     { push(@hash,$hash_i) ; push(@i,$i) ; last ;}
+	    elsif ($type eq '=='  && $data == $value)     { push(@hash,$hash_i) ; push(@i,$i) ; last ;}
+	    elsif ($type eq '!='  && $data != $value)     { push(@hash,$hash_i) ; push(@i,$i) ; last ;}
+	    elsif ($type eq '<='  && $data <= $value)     { push(@hash,$hash_i) ; push(@i,$i) ; last ;}
+	    elsif ($type eq '>='  && $data >= $value)     { push(@hash,$hash_i) ; push(@i,$i) ; last ;}
+	    elsif ($type eq '<'   && $data <  $value)     { push(@hash,$hash_i) ; push(@i,$i) ; last ;}
+	    elsif ($type eq '>'   && $data >  $value)     { push(@hash,$hash_i) ; push(@i,$i) ; last ;}
+	    elsif ($type eq '=~'  && $data =~ /$value/s)  { push(@hash,$hash_i) ; push(@i,$i) ; last ;}
+	    elsif ($type eq '=~i' && $data =~ /$value/is) { push(@hash,$hash_i) ; push(@i,$i) ; last ;}
+	    elsif ($type eq '!~'  && $data !~ /$value/s)  { push(@hash,$hash_i) ; push(@i,$i) ; last ;}
+	    elsif ($type eq '!~i' && $data !~ /$value/is) { push(@hash,$hash_i) ; push(@i,$i) ; last ;}
+	    _reset_sig_warn() ;
+	}
+
+	if( $notwant && @hash ) { 
+	    last ;
+	}
     }
-  }
-  
-  if (wantarray) { return() ;}
-  return &XML::Smart::clone($this,'') ;
+    
+    my $back = $$this->{back} ;
+    
+    #print "FIND>> @{$$this->{keyprev}} >> $i\n" ;
+    
+    if( @hash ) {
+	if( $notwant ) {
+	    my ($k,$hash) = (undef) ;
+	    if (ref $hash[0] eq 'ARRAY') { ($k,$hash) = @{$hash[0]} ;}
+	    else { $hash = $hash[0] ;}
+	    return &XML::Smart::clone($this,$hash,$back,undef, $k,$i[0]) ;
+	}
+	else {
+	    my $c = -1 ;
+	    foreach my $hash_i ( @hash ) {
+		$c++ ;
+		my ($k,$hash) = (undef) ;
+		if (ref $hash_i eq 'ARRAY') { ($k,$hash) = @{$hash_i} ;}
+		else { $hash = $hash_i ;}        
+		$hash_i = &XML::Smart::clone($this,$hash,$back,undef, $k,$i[$c]) ;
+	    }
+	    return( @hash ) ;
+	}
+    }
+    
+    if (wantarray) { return() ;}
+    return &XML::Smart::clone($this,'') ;
 }
 
 ###########
 # CONTENT #
 ###########
-
 sub content {
-  my $this = shift ;
-  my $set_i = $#_ > 0 ? shift : undef ;
+
+    my $this = shift ;
+    my $set_i = $#_ > 0 ? shift : undef ;
   
-  if ( $this->null ) {
-    &XML::Smart::Tie::_generate_nulltree( $$this ) ;
-  }
-  
-  ##use Data::Dumper; print Dumper($$this) ;
-  
-  if ( defined $$this->{content} ) {
-    if (@_) { ${$$this->{content}} = $_[0] ;}
-    return ${$$this->{content}} ;
-  }
-  
-  my $key = 'CONTENT' ;
-  my $i = $$this->{i} ;
-  
-  if (ref($$this->{point}) eq 'ARRAY') {
-    return $this->[0]->content($set_i,@_) ;
-  }
-  
-  if ( ref($$this->{point}) ne 'HASH' ) { return '' ;}
-  
-  if ( !exists $$this->{point}{$key} ) {
-    if ( @_ ) { return $$this->{point}{$key} = $_[0] ;}
-    return '' ;
-  }
-  
-  if (ref($$this->{point}{$key}) eq 'ARRAY') {
-    if ($i eq '') { $i = 0 ;}
-    if (@_) { $$this->{point}{$key}[$i] = $_[0] ;}
-    return $$this->{point}{$key}[$i] ;
-  }
-  elsif (exists $$this->{point}{$key}) {
-    if ( @_ ) {
-      if ( my $tie = tied($$this->{point}{$key}) ) { $tie->STORE($set_i , $_[0]) ;}
-      else { $$this->{point}{$key} = $_[0] ;}
+    if ( $this->null ) {
+	&XML::Smart::Tie::_generate_nulltree( $$this ) ;
     }
-    if ( wantarray && ( my $tie = tied($$this->{point}{$key}) ) ) { return $tie->FETCH(1) ;}
-    return $$this->{point}{$key} ;
-  }
   
-  return '' ;
+    ##use Data::Dumper; print Dumper($$this) ;
+  
+    my $content_to_return ;
+    if ( defined $$this->{content} and ( !defined( $content_to_return ) ) ) {
+	if (@_) { ${$$this->{content}} = $_[0] ;}
+	$content_to_return = ${$$this->{content}} ;
+    }
+
+    my $key = 'CONTENT' ;
+    my $i = $$this->{i} ;
+  
+    if( ( ref($$this->{point}) eq 'ARRAY' ) and ( !defined( $content_to_return ) ) ) {
+	$content_to_return = $this->[0]->content($set_i,@_) ;
+    }
+
+    if( ( ref($$this->{point}) ne 'HASH' ) and ( !defined( $content_to_return ) ) ) { 
+	$content_to_return = '' ;
+    }
+  
+    if( ( !exists $$this->{point}{$key} ) and ( !defined( $content_to_return ) ) ) {
+	if( @_ ) { 
+	    $content_to_return = $$this->{point}{$key} = $_[0] ;
+	} else {
+	    $content_to_return = '' ;
+	}
+    }
+  
+    if( defined( $content_to_return ) ) { 
+	return $content_to_return ;
+    }
+
+  
+    if( ( ref($$this->{point}{$key}) eq 'ARRAY' ) and ( !defined( $content_to_return ) ) ) {
+
+	if($i eq '') { 
+	    $i = 0 ;
+	}
+
+	if(@_) { 
+	    $$this->{point}{$key}[$i] = $_[0] ;
+	}
+
+	$content_to_return = $$this->{point}{$key}[$i] ;
+
+    } elsif( ( exists $$this->{point}{$key} ) and ( !defined( $content_to_return ) ) ) {
+	
+	if ( @_ ) {
+	    if ( my $tie = tied($$this->{point}{$key}) ) { 
+		$tie->STORE($set_i , $_[0]) ;
+	    } else { 
+		$$this->{point}{$key} = $_[0] ;
+	    }
+	}
+
+	if( wantarray && ( my $tie = tied($$this->{point}{$key} ) ) ) { 
+	    my @tmp = $tie->FETCH(1)   ;
+	    $content_to_return = \@tmp ;
+	} else {
+	    $content_to_return = $$this->{point}{$key} ;
+	}
+
+    }
+
+    unless( defined( $content_to_return ) ) { 
+	$content_to_return = '' ;
+    }
+  
+    if( wantarray ) { 
+	return @{ $content_to_return } ;
+    } else {
+	return $content_to_return ;
+    }
+
 }
 
 ########
@@ -1268,19 +1432,24 @@ sub content {
 ########
 
 sub save {
-  my $this = shift ;
-  my $file = shift ;
-  
-  if (-d $file || (-e $file && !-w $file)) { return ;}
-  
-  my ($data,$unicode) = $this->data(@_) ;
-  
-  my $fh ;
-  open ($fh,">$file") ; binmode($fh) if $unicode ;
-  print $fh $data ;
-  close ($fh) ;
-  
-  return( 1 ) ;
+
+    my $this = shift ;
+    my $file = shift ;
+    
+    if(-d $file || (-e $file && !-w $file)) { 
+	return ;
+    }
+    
+    my( $data, $unicode ) = $this->data(@_) ;
+    
+    my $fh ;
+    open($fh,">$file") ; 
+    binmode($fh) if $unicode ;
+    print $fh $data ;
+    close($fh) ;
+    
+    return( 1 ) ;
+    
 }
 
 ################
@@ -1288,25 +1457,28 @@ sub save {
 ################
 
 sub data_pointer {
-  my $this = shift ;
-  if ( $this->null ) { return ;}
-  
-  my ($point,$key) ;
-  
-  if ( exists $$this->{content} ) {
-    my $back = $this->back ;
-    my $root = $back->key ;
-    my $k = $this->key ;
-    $point = $back->pointer ;
-    $point = $$point{ $this->key } ;
-    $point = {$root => {$k => $point} } ;
-  }
-  else {
-    $point = $$this->{point} ;
-    $key = $this->key ;
-  }
-  
-  $this->data( tree => $point , root => $key , @_) ;
+
+    my $this = shift ;
+    if( $this->null ) { 
+	return ;
+    }
+    
+    my( $point, $key ) ;
+    
+    if ( exists $$this->{content} ) {
+	my $back = $this->back ;
+	my $root = $back->key ;
+	my $k = $this->key ;
+	$point = $back->pointer ;
+	$point = $$point{ $this->key } ;
+	$point = {$root => {$k => $point} } ;
+    } else {
+	$point = $$this->{point} ;
+	$key = $this->key ;
+    }
+    
+    $this->data( tree => $point , root => $key , @_) ;
+    
 }
 
 ###########
@@ -1314,91 +1486,92 @@ sub data_pointer {
 ###########
 
 sub DESTROY {
-  my $this = shift ;
-  
-  if( $$this->{ DEV_DEBUG } ) {
-      require Devel::Cycle ;
-      my $circ_ref = 0     ;
-      my $tmp = Devel::Cycle::find_cycle(
-	  $this, 
-	  sub {
-	      my $path = shift;
-	      foreach (@$path) {
-		  my ($type,$index,$ref,$value) = @$_;
-		  $circ_ref = 1 ;
-		  
-	      }
-	      
-	  });
 
-      if( $circ_ref ) { 
-	  $this->ANNIHILATE() ;
-	  my $tmp = Devel::Cycle::find_cycle( 
-	      $this, 
-	      sub {
-		  print STDERR "Circular reference found while destroying object - AFTER ANNIHILATE\n" ;
-	      });
-      }
-  } 
-
-  $$this->clean if( $this && $$this ) ; # In case object was messed with ( bug 62091 ) 
-
-
+    my $this = shift ;
+    
+    if( $$this->{ DEV_DEBUG } ) {
+	require Devel::Cycle ;
+	my $circ_ref = 0     ;
+	my $tmp = Devel::Cycle::find_cycle(
+	    $this, 
+	    sub {
+		my $path = shift;
+		foreach (@$path) {
+		    my ($type,$index,$ref,$value) = @$_;
+		    $circ_ref = 1 ;
+		    
+		}
+		
+	    });
+	
+	if( $circ_ref ) { 
+	    $this->ANNIHILATE() ;
+	    my $tmp = Devel::Cycle::find_cycle( 
+		$this, 
+		sub {
+		    print STDERR "Circular reference found while destroying object - AFTER ANNIHILATE\n" ;
+		});
+	}
+    } 
+    
+    $$this->clean if( $this && $$this ) ; # In case object was messed with ( bug 62091 ) 
+    
+    
 }
 
 sub ANNIHILATE {
-
-  my $this = shift ;
-  my $base = shift ;
-  
-  if( ref $$this->{ point } eq 'HASH' ) { 
-      my %clean ;
-      $$this->{ point } = \%clean ;
-  } else { 
-      $this->{ point }->ANNIHILATE( ) ;
-  }
-
-  if( ref $$this->{ tree } eq 'HASH' ) { 
-      my %clean ;
-      $$this->{ tree } = \%clean ;
-  } else { 
+    
+    my $this = shift ;
+    my $base = shift ;
+    
+    if( ref $$this->{ point } eq 'HASH' ) { 
+	my %clean ;
+	$$this->{ point } = \%clean ;
+    } else { 
+	$this->{ point }->ANNIHILATE( ) ;
+    }
+    
+    if( ref $$this->{ tree } eq 'HASH' ) { 
+	my %clean ;
+	$$this->{ tree } = \%clean ;
+    } else { 
       $this->{ tree }->ANNIHILATE( ) ;
-  }
+    }
+    
+    
+    if( ref $$this->{ back } eq 'HASH' ) { 
+	my %clean ;
+	$$this->{ back } = \%clean ;
+    } else { 
+	$this->{ back }->ANNIHILATE( ) ;
+    }
+    
+    if( $$this->{ XPATH } ) { # and ( ref $$this->{ XPATH } eq 'XML::XPath' ) ) { 
+	my $xpath = $$this->{ XPATH } ;
+	$$xpath->cleanup() ;
+	my $context = $$xpath->{ _context } ;
+	my $context_ref = ref $context ;
+	if( $context_ref =~ /XML\:\:XPath\:\:Node\:\:/ ) {
+	    _xml_xpath_clean( $context ) ;
+	} 
+    }
+    
+    $$this->DESTROY();
 
-
-  if( ref $$this->{ back } eq 'HASH' ) { 
-      my %clean ;
-      $$this->{ back } = \%clean ;
-  } else { 
-      $this->{ back }->ANNIHILATE( ) ;
-  }
-
-  if( $$this->{ XPATH } ) { # and ( ref $$this->{ XPATH } eq 'XML::XPath' ) ) { 
-      my $xpath = $$this->{ XPATH } ;
-      $$xpath->cleanup() ;
-      my $context = $$xpath->{ _context } ;
-      my $context_ref = ref $context ;
-      if( $context_ref =~ /XML\:\:XPath\:\:Node\:\:/ ) {
-	  _xml_xpath_clean( $context ) ;
-      } 
-  }
-
-  $$this->DESTROY();
-
-  return 1 ;
-
+    return 1 ;
+    
 }
 
 
 sub _xml_xpath_clean { 
-
+    
     my $path = shift ;
-
+    
     $path->dispose() ;
     # Data::Structure::Util::unbless( $path ) ;
     
     return ;
-
+    
 }
 
 ###################
@@ -1406,8 +1579,8 @@ sub _xml_xpath_clean {
 ###################
 
 sub STORABLE_freeze {
-  my $this = shift ;
-  return($this , [$$this->{tree} , $$this->{pointer}])  ;
+    my $this = shift ;
+    return($this , [$$this->{tree} , $$this->{pointer}])  ;
 }
 
 #################
@@ -1415,10 +1588,10 @@ sub STORABLE_freeze {
 #################
 
 sub STORABLE_thaw {
-  my $this = shift ;
-  $$this->{tree} = $_[1]->[0] ;
-  $$this->{pointer} = $_[1]->[1] ;
-  return ;
+    my $this = shift ;
+    $$this->{tree} = $_[1]->[0] ;
+    $$this->{pointer} = $_[1]->[1] ;
+    return ;
 }
 
 #######
