@@ -20,4 +20,4 @@ no_index:
 requires:
   Object::MultiType: 0.03
   perl: 5.006
-version: 1.78
+version: 1.79
